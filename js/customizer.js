@@ -196,10 +196,10 @@ if (typeof THREE !== 'undefined') {
   // THREE.GLTFLoader — the rest of the system (canvas texture, draw mode) stays.
   // ─────────────────────────────────────────────────────────────────────────
 
-  // Extrude presets
-  const EXTRUDE_BODY = { depth: 0.22, bevelEnabled: true,  bevelSize: 0.024, bevelThickness: 0.013, bevelSegments: 3 };
-  const EXTRUDE_BOT  = { depth: 0.18, bevelEnabled: false };
-  const EXTRUDE_HAT  = { depth: 0.14, bevelEnabled: true,  bevelSize: 0.020, bevelThickness: 0.010, bevelSegments: 2 };
+  // Extrude presets — keep depth minimal so side edges are subtle from any angle
+  const EXTRUDE_BODY = { depth: 0.06, bevelEnabled: true,  bevelSize: 0.010, bevelThickness: 0.006, bevelSegments: 2 };
+  const EXTRUDE_BOT  = { depth: 0.05, bevelEnabled: false };
+  const EXTRUDE_HAT  = { depth: 0.05, bevelEnabled: true,  bevelSize: 0.008, bevelThickness: 0.005, bevelSegments: 2 };
 
   /** Generic torso panel — shoulder line → neck curve → body, pre-centred at origin. */
   function torsoShape(shW, nkW, nkRise, h) {
@@ -414,8 +414,9 @@ if (typeof THREE !== 'undefined') {
     side: THREE.FrontSide,
   });
 
+  // Side material matches fabric color (slightly darkened) so edges don't look like a dark box
   const sideMaterial = new THREE.MeshStandardMaterial({
-    color: 0x1A1A1A,
+    color: new THREE.Color(state.activeColor).multiplyScalar(0.72),
     roughness: 0.95,
     metalness: 0.0,
   });
@@ -693,7 +694,7 @@ if (typeof THREE !== 'undefined') {
 
     // Tint side + sleeve/hood materials to match clothing colour
     const base = new THREE.Color(hex);
-    sideMaterial.color = base.clone().multiplyScalar(0.35);
+    sideMaterial.color = base.clone().multiplyScalar(0.72);
     if (extraMaterial) extraMaterial.color = base.clone().multiplyScalar(0.78);
 
     compositeTexture();
@@ -1253,6 +1254,34 @@ if (typeof THREE !== 'undefined') {
   requestAnimationFrame(function () {
     requestAnimationFrame(onResize);
   });
+
+  /* ─── Reset camera to front when section scrolls into view ───────────────
+     On mobile the page loads and the animation loop runs for seconds before
+     the user scrolls to the customizer. autoRotate accumulates and shows the
+     model from the side. This observer snaps the camera back to front whenever
+     the section becomes at least 20% visible.                               */
+  function resetCameraToFront() {
+    camera.position.set(0, 0, 6);
+    controls.target.set(0, 0, 0);
+    controls.update();
+  }
+
+  const custSection = document.getElementById('customizer');
+  if (custSection && typeof IntersectionObserver !== 'undefined') {
+    var _sectionWasHidden = true;
+    new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          if (_sectionWasHidden) {
+            resetCameraToFront();
+            _sectionWasHidden = false;
+          }
+        } else {
+          _sectionWasHidden = true; // will reset again on next visit
+        }
+      });
+    }, { threshold: 0.20 }).observe(custSection);
+  }
 
   /* ─── Render loop ────────────────────────────────────────────────────────── */
   function animate() {
