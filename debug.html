@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EP Debug — 3D Models</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #111; color: #eee; font-family: monospace; font-size: 13px; padding: 20px; }
+    h2 { color: #DC2626; font-size: 18px; margin-bottom: 16px; }
+    .log { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 12px; max-height: 260px; overflow-y: auto; margin-bottom: 16px; }
+    .log-line { padding: 2px 0; }
+    .ok   { color: #4ade80; }
+    .warn { color: #facc15; }
+    .err  { color: #f87171; }
+    .info { color: #60a5fa; }
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .btn { background: #DC2626; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: monospace; }
+    .btn:hover { background: #b91c1c; }
+    .btn.ghost { background: #333; }
+    .btn.ghost:hover { background: #444; }
+    #viewport { width: 100%; max-width: 700px; height: 420px; background: #181818; border-radius: 12px; display: block; }
+  </style>
+</head>
+<body>
+  <h2>Easy Production — Debug 3D Models</h2>
+  <div class="log" id="log"></div>
+  <div class="btns" id="modelBtns"></div>
+  <canvas id="viewport"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="js/db.js"></script>
+
+  <script type="module">
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+    import { GLTFLoader }    from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+
+    /* ── log helper ────────────────────────────────────────────────────────── */
+    const logEl = document.getElementById('log');
+    function log(msg, cls) {
+      const d = document.createElement('div');
+      d.className = 'log-line ' + (cls || '');
+      d.textContent = new Date().toLocaleTimeString('ru') + '  ' + msg;
+      logEl.appendChild(d);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    /* ── dependency check ──────────────────────────────────────────────────── */
+    log('THREE: ' + (typeof THREE !== 'undefined' ? 'v' + THREE.REVISION + ' OK' : 'NOT LOADED'), typeof THREE !== 'undefined' ? 'ok' : 'err');
+    log('EpDB: ' + (typeof EpDB !== 'undefined' ? 'OK' : 'NOT LOADED — js/db.js missing?'), typeof EpDB !== 'undefined' ? 'ok' : 'err');
+    log('OrbitControls: OK', 'ok');
+    log('GLTFLoader: OK', 'ok');
+
+    /* ── Three.js scene ────────────────────────────────────────────────────── */
+    const canvas   = document.getElementById('viewport');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(canvas.offsetWidth || 700, 420);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene  = new THREE.Scene();
+    scene.background = new THREE.Color(0x181818);
+
+    const camera = new THREE.PerspectiveCamera(35, (canvas.offsetWidth || 700) / 420, 0.01, 100);
+    camera.position.set(0, 0, 6);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.autoRotate    = true;
+    controls.autoRotateSpeed = 0.6;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const keyLight = new THREE.DirectionalLight(0xfff5e0, 1.4);
+    keyLight.position.set(3, 5, 5);
+    scene.add(keyLight);
+    scene.add(new THREE.DirectionalLight(0xd0e0ff, 0.5).position.set(-3, 2, 3) && keyLight);
+
+    let currentGroup = null;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    /* ── load model ────────────────────────────────────────────────────────── */
+    async function loadModel(type) {
+      log('--- Loading: ' + type + ' ---', 'info');
+
+      if (typeof EpDB === 'undefined') {
+        log('EpDB not available', 'err');
+        return;
+      }
+
+      let buf;
+      try {
+        buf = await EpDB.models.get(type);
+      } catch (e) {
+        log('IDB read error: ' + e.message, 'err');
+        return;
+      }
+
+      if (!buf) {
+        log('No model stored for "' + type + '"', 'warn');
+        return;
+      }
+
+      log('Buffer OK: ' + Math.round(buf.byteLength / 1024) + ' KB', 'ok');
+
+      // Remove previous model
+      if (currentGroup) {
+        scene.remove(currentGroup);
+        currentGroup.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+        currentGroup = null;
+      }
+
+      const blob   = new Blob([buf], { type: 'model/gltf-binary' });
+      const url    = URL.createObjectURL(blob);
+      log('Blob URL created', 'ok');
+
+      const loader = new GLTFLoader();
+
+      loader.load(url,
+        function onLoad(gltf) {
+          URL.revokeObjectURL(url);
+          log('GLTF parsed OK — scene children: ' + gltf.scene.children.length, 'ok');
+
+          const group = new THREE.Group();
+          group.add(gltf.scene);
+
+          // Center
+          const box = new THREE.Box3().setFromObject(group);
+          const center = new THREE.Vector3();
+          box.getCenter(center);
+          gltf.scene.position.sub(center);
+
+          // Scale to ~2.8 units
+          const box2 = new THREE.Box3().setFromObject(group);
+          const sz   = new THREE.Vector3();
+          box2.getSize(sz);
+          log('Model size: ' + sz.x.toFixed(2) + ' x ' + sz.y.toFixed(2) + ' x ' + sz.z.toFixed(2), 'info');
+
+          const maxDim = Math.max(sz.x, sz.y, sz.z);
+          if (maxDim > 0) group.scale.setScalar(2.8 / maxDim);
+
+          scene.add(group);
+          currentGroup = group;
+
+          let meshCount = 0;
+          gltf.scene.traverse(o => { if (o.isMesh) meshCount++; });
+          log('Meshes in model: ' + meshCount, meshCount > 0 ? 'ok' : 'warn');
+          log('Model added to scene', 'ok');
+          controls.autoRotate = true;
+        },
+        function onProgress(p) {
+          if (p.total) log('Loading... ' + Math.round(p.loaded / p.total * 100) + '%', 'info');
+        },
+        function onError(err) {
+          URL.revokeObjectURL(url);
+          log('GLTF load error: ' + (err.message || String(err)), 'err');
+        }
+      );
+    }
+
+    /* ── list models from IDB ──────────────────────────────────────────────── */
+    const btnsEl = document.getElementById('modelBtns');
+
+    if (typeof EpDB !== 'undefined') {
+      let keys;
+      try {
+        keys = await EpDB.models.keys();
+      } catch (e) {
+        log('IDB keys error: ' + e.message, 'err');
+        keys = [];
+      }
+
+      log('Models in IDB: ' + (keys.length ? keys.join(', ') : 'none'), keys.length ? 'ok' : 'warn');
+
+      if (keys.length === 0) {
+        btnsEl.innerHTML = '<span style="color:#facc15">No models in IndexedDB. Upload via admin.html first.</span>';
+      } else {
+        keys.forEach(type => {
+          const btn = document.createElement('button');
+          btn.className = 'btn';
+          btn.textContent = 'Load: ' + type;
+          btn.onclick = () => loadModel(type);
+          btnsEl.appendChild(btn);
+        });
+
+        // Auto-load first model
+        log('Auto-loading first model: ' + keys[0], 'info');
+        loadModel(keys[0]);
+      }
+    } else {
+      btnsEl.innerHTML = '<span style="color:#f87171">EpDB not loaded. Check js/db.js path.</span>';
+    }
+
+    /* ── clear scene ───────────────────────────────────────────────────────── */
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'btn ghost';
+    clearBtn.textContent = 'Clear scene';
+    clearBtn.onclick = () => {
+      if (currentGroup) { scene.remove(currentGroup); currentGroup = null; }
+      log('Scene cleared', 'info');
+    };
+    btnsEl.appendChild(clearBtn);
+  </script>
+</body>
+</html>

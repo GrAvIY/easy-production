@@ -1,0 +1,1078 @@
+/**
+ * Easy Production — Liquid Glass CSS (v3 — True Liquid Glass)
+ * Technique: SVG feDisplacementMap edge refraction + CSS specular highlights
+ * Inspired by: Apple iOS 26 Liquid Glass / frontendmasters.com/blog/liquid-glass-on-the-web/
+ *
+ * Loaded AFTER main.css. Overrides with !important where needed.
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1. VIVID GRADIENT BODY — glass only works over colorful backgrounds
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+body {
+  background: linear-gradient(160deg, #EEF2FF 0%, #F5F0FF 35%, #FFF1F5 65%, #FFF7ED 100%) !important;
+  background-attachment: fixed !important;
+}
+
+body::before { display: none !important; }
+
+/* Hidden SVG filter definitions (referenced by CSS filter:url()) */
+.svg-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2. FONT OVERRIDE — switch everything to Inter
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Override display font — replaces Cormorant Garamond site-wide */
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Force Inter on all text including display headings */
+*, *::before, *::after {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. CSS CUSTOM PROPERTIES — liquid glass design tokens
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Core glass values */
+  --lg-bg:         rgba(255, 255, 255, 0.10);
+  --lg-bg-hover:   rgba(255, 255, 255, 0.18);
+  --lg-blur:       blur(36px) saturate(220%) brightness(1.08);
+  --lg-border:     rgba(255, 255, 255, 0.68);
+  --lg-border-dim: rgba(255, 255, 255, 0.40);
+
+  /* Layered shadow: depth + top specular + bottom reflection + side edges */
+  --lg-shadow:
+    0 2px 4px  rgba(0, 0, 0, 0.04),
+    0 8px 32px rgba(0, 0, 0, 0.09),
+    0 24px 64px rgba(0, 0, 0, 0.05),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.88),   /* top specular line  */
+    inset 0 -1px 0 rgba(255, 255, 255, 0.22),    /* bottom reflection  */
+    inset 1px  0 0 rgba(255, 255, 255, 0.30),    /* left edge          */
+    inset -1px 0 0 rgba(255, 255, 255, 0.30);    /* right edge         */
+
+  --lg-shadow-hover:
+    0 4px 8px  rgba(0, 0, 0, 0.06),
+    0 16px 48px rgba(0, 0, 0, 0.13),
+    0 32px 80px rgba(0, 0, 0, 0.07),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.30),
+    inset 1px  0 0 rgba(255, 255, 255, 0.40),
+    inset -1px 0 0 rgba(255, 255, 255, 0.40);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. BASE GLASS CLASS — reusable utility
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.glass-block {
+  background: var(--lg-bg);
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+  border: 1px solid var(--lg-border);
+  border-radius: 24px;
+  padding: 32px 40px;
+  box-shadow: var(--lg-shadow);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.3s ease;
+}
+
+.glass-block::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 140% 55% at 28% 0%, rgba(255, 255, 255, 0.52) 0%, transparent 52%),
+    linear-gradient(152deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.06) 40%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glass-block:hover {
+  transform: translateY(-5px);
+  background: var(--lg-bg-hover);
+  box-shadow: var(--lg-shadow-hover);
+}
+
+.glass-block > * { position: relative; z-index: 1; }
+
+
+.glass-card {
+  background: var(--lg-bg);
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+  border: 1px solid var(--lg-border);
+  border-radius: 20px;
+  box-shadow: var(--lg-shadow);
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.4s ease, box-shadow 0.4s ease, background 0.3s ease;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 130% 50% at 25% 0%, rgba(255, 255, 255, 0.48) 0%, transparent 50%),
+    linear-gradient(148deg, rgba(255, 255, 255, 0.34) 0%, transparent 55%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glass-card:hover {
+  transform: translateY(-6px);
+  background: var(--lg-bg-hover);
+  box-shadow: var(--lg-shadow-hover);
+}
+
+.glass-card > * { position: relative; z-index: 1; }
+
+
+/* ─── Glass button ───────────────────────────────────────────────────────── */
+
+.glass-btn {
+  background: rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  color: var(--c-text, #111);
+  border-radius: 100px;
+  padding: 11px 24px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    var(--lg-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition: background 0.25s, box-shadow 0.25s, transform 0.2s;
+}
+
+.glass-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(155deg, rgba(255,255,255,0.42) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.glass-btn:hover {
+  background: rgba(255, 255, 255, 0.30);
+  box-shadow: var(--lg-shadow-hover);
+  transform: translateY(-2px);
+}
+
+
+/* ─── Glass input ────────────────────────────────────────────────────────── */
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 12px;
+  padding: 11px 16px;
+  font-size: 15px;
+  width: 100%;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.80),
+    0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+  font-family: inherit;
+  color: var(--c-text, #111);
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: var(--c-accent, #DC2626);
+  background: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.90),
+    0 0 0 3px rgba(220, 38, 38, 0.14);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4. SITE-WIDE GLASS — every interactive/content block
+   All elements get the same core: near-transparent bg + strong blur + specular
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Core glass applied to ALL blocks ──────────────────────────────────── */
+
+.header,
+.nav__mobile,
+.marquee,
+.services__grid,
+.service-card,
+.about__pillar,
+.method-card,
+.method-item,
+.process__step,
+.customizer__controls,
+.customizer__cta,
+.calc__result-inner,
+.portfolio__item,
+.faq__list,
+.faq__item,
+.contact__card,
+.contact__form-wrap,
+.hero__stat {
+  background: var(--lg-bg) !important;
+  -webkit-backdrop-filter: var(--lg-blur) !important;
+  backdrop-filter: var(--lg-blur) !important;
+  border: 1px solid var(--lg-border) !important;
+  box-shadow: var(--lg-shadow) !important;
+}
+
+/* ─── Specular highlight layer — elements without conflicting ::before ─── */
+/* (service-card uses ::before for the large number — skip it)             */
+
+.about__pillar,
+.method-card,
+.method-item,
+.process__step,
+.hero__stat,
+.contact__card,
+.contact__form-wrap,
+.calc__result-inner,
+.faq__list,
+.portfolio__item {
+  position: relative !important;
+}
+
+.about__pillar::before,
+.method-card::before,
+.method-item::before,
+.hero__stat::before,
+.contact__card::before,
+.contact__form-wrap::before,
+.calc__result-inner::before,
+.faq__list::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  background:
+    radial-gradient(ellipse 140% 55% at 28% 0%, rgba(255, 255, 255, 0.50) 0%, transparent 52%),
+    linear-gradient(152deg, rgba(255, 255, 255, 0.36) 0%, rgba(255, 255, 255, 0.05) 42%, transparent 65%) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+/* Ensure content sits above specular overlay */
+.about__pillar > *,
+.method-card > *,
+.method-item > *,
+.hero__stat > *,
+.contact__card > *,
+.contact__form-wrap > *,
+.calc__result-inner > *,
+.faq__list > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* ─── Bottom reflection ::after ──────────────────────────────────────────── */
+
+.about__pillar::after,
+.method-card::after,
+.method-item::after,
+.hero__stat::after,
+.contact__card::after {
+  content: '' !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 40% !important;
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.16) 0%, transparent 100%) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  border-radius: inherit !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5. PER-ELEMENT OVERRIDES — shape, radius, hover behaviour
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.header {
+  border-radius: 0 !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.50) !important;
+}
+
+/* ── Marquee ─────────────────────────────────────────────────────────────── */
+.marquee {
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+/* ── Mobile nav ─────────────────────────────────────────────────────────── */
+.nav__mobile {
+  border-radius: 0 0 28px 28px !important;
+  border-top: none !important;
+}
+
+/* ── Services grid wrapper ───────────────────────────────────────────────── */
+.services__grid {
+  border-radius: 28px !important;
+  overflow: clip !important;
+  gap: 1px !important;
+}
+
+/* ── Service cards (inside grid) ─────────────────────────────────────────── */
+.service-card {
+  border-radius: 0 !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.42) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.42) !important;
+  /* Compensate: add inset highlight since ::before is used for number */
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.80),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+    0 2px 12px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Service card hover */
+.service-card:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.92),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.28),
+    0 8px 28px rgba(0, 0, 0, 0.09) !important;
+}
+
+/* ── About pillars ───────────────────────────────────────────────────────── */
+.about__pillar {
+  border-radius: 20px !important;
+  overflow: visible !important;
+  padding: var(--sp-6, 1.5rem) !important;
+  transition: transform 0.35s ease, box-shadow 0.35s ease, background 0.3s ease !important;
+}
+
+.about__pillar:hover {
+  transform: translateY(-5px) !important;
+  background: var(--lg-bg-hover) !important;
+  box-shadow: var(--lg-shadow-hover) !important;
+}
+
+/* ── Method cards (methods section) ─────────────────────────────────────── */
+.method-card,
+.method-item {
+  border-radius: 20px !important;
+  overflow: visible !important;
+  transition: transform 0.35s ease, box-shadow 0.35s ease, background 0.3s ease !important;
+}
+
+.method-card:hover,
+.method-item:hover {
+  transform: translateY(-5px) !important;
+  background: var(--lg-bg-hover) !important;
+  box-shadow: var(--lg-shadow-hover) !important;
+}
+
+/* ── Process steps ───────────────────────────────────────────────────────── */
+.process__step {
+  border-radius: 20px !important;
+  overflow: visible !important;
+  transition: transform 0.35s ease, box-shadow 0.35s ease, background 0.3s ease !important;
+  /* use inset shadow for specular since we want overflow:hidden and ::before conflicts with step numbering */
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.07),
+    0 1px 4px rgba(0, 0, 0, 0.04),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.88),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.20),
+    inset 1px  0 0 rgba(255, 255, 255, 0.28),
+    inset -1px 0 0 rgba(255, 255, 255, 0.28) !important;
+}
+
+.process__step:hover {
+  transform: translateY(-5px) !important;
+  background: var(--lg-bg-hover) !important;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.12),
+    0 4px 8px rgba(0, 0, 0, 0.06),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.30),
+    inset 1px  0 0 rgba(255, 255, 255, 0.40),
+    inset -1px 0 0 rgba(255, 255, 255, 0.40) !important;
+}
+
+/* ── Portfolio items ─────────────────────────────────────────────────────── */
+.portfolio__item {
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  transition: transform 0.35s ease, box-shadow 0.35s ease !important;
+}
+
+.portfolio__item:hover {
+  transform: translateY(-6px) !important;
+  box-shadow: var(--lg-shadow-hover) !important;
+}
+
+.portfolio__item-info {
+  background: rgba(255, 255, 255, 0.72) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+}
+
+.portfolio__img {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* ── FAQ ─────────────────────────────────────────────────────────────────── */
+.faq__list {
+  border-radius: 28px !important;
+  overflow: hidden !important;
+  padding: 0 var(--sp-8, 2rem) !important;
+}
+
+.faq__item {
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.42) !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  margin-bottom: 0 !important;
+}
+
+/* ── Calculator result ───────────────────────────────────────────────────── */
+.calc__result-inner {
+  border-radius: 24px !important;
+  overflow: hidden !important;
+}
+
+/* ── Hero stats ──────────────────────────────────────────────────────────── */
+.hero__stat {
+  border-radius: 20px !important;
+  padding: 20px 24px !important;
+  overflow: hidden !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+.hero__stat:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: var(--lg-shadow-hover) !important;
+}
+
+/* ── Contact ─────────────────────────────────────────────────────────────── */
+.contact__card {
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  transition: transform 0.35s ease, box-shadow 0.35s ease !important;
+}
+
+.contact__card:hover {
+  transform: translateY(-5px) !important;
+  box-shadow: var(--lg-shadow-hover) !important;
+}
+
+.contact__form-wrap {
+  border-radius: 28px !important;
+  overflow: hidden !important;
+}
+
+/* ── Customizer ──────────────────────────────────────────────────────────── */
+.customizer__controls,
+.customizer__cta {
+  border-radius: 0 !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   6. BUTTONS — glass style for all interactive buttons
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.btn--ghost,
+.btn--outline {
+  background: rgba(255, 255, 255, 0.16) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.68) !important;
+  color: var(--c-text, #111) !important;
+  border-radius: 6px !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.80),
+    0 2px 10px rgba(0, 0, 0, 0.07) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.btn--ghost::after,
+.btn--outline::after {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.40) 0%, transparent 55%) !important;
+  opacity: 1 !important;
+}
+
+.btn--ghost:hover,
+.btn--outline:hover {
+  background: rgba(255, 255, 255, 0.30) !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
+    0 6px 22px rgba(0, 0, 0, 0.11) !important;
+  transform: translateY(-2px) !important;
+  color: var(--c-text, #111) !important;
+  border-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* Nav CTA accent button - keep accent color but add glass */
+.btn--accent {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.btn--accent::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: linear-gradient(148deg, rgba(255, 255, 255, 0.25) 0%, transparent 55%) !important;
+  pointer-events: none !important;
+  border-radius: inherit !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   7. FORM INPUTS — glass inputs in contact section
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.contact__form input,
+.contact__form textarea,
+.contact__form select {
+  background: rgba(255, 255, 255, 0.16) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+  backdrop-filter: blur(16px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.62) !important;
+  border-radius: 10px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 1px 4px rgba(0, 0, 0, 0.04) !important;
+  color: var(--c-text, #111) !important;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s !important;
+}
+
+.contact__form input:focus,
+.contact__form textarea:focus {
+  background: rgba(255, 255, 255, 0.32) !important;
+  border-color: var(--c-accent, #DC2626) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.90),
+    0 0 0 3px rgba(220, 38, 38, 0.14) !important;
+  outline: none !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   8. CALCULATOR INPUTS — glass
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.calc__select,
+.calc__input,
+select.calc__select {
+  background: rgba(255, 255, 255, 0.18) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  border-radius: 10px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75) !important;
+  color: var(--c-text, #111) !important;
+}
+
+.calc__select:focus,
+.calc__input:focus {
+  background: rgba(255, 255, 255, 0.32) !important;
+  border-color: var(--c-accent, #DC2626) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.90),
+    0 0 0 3px rgba(220, 38, 38, 0.14) !important;
+  outline: none !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   9. SECTION LABELS — glass pill badges
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.section-label {
+  color: var(--c-accent, #DC2626) !important;
+  background: rgba(220, 38, 38, 0.10) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(220, 38, 38, 0.22) !important;
+  border-radius: 100px !important;
+  padding: 0.3em 0.9em !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.70) !important;
+}
+
+/* ─── Hero stat accent numbers ───────────────────────────────────────────── */
+.hero__stat-value,
+.hero__stat-number { color: var(--c-accent, #DC2626) !important; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   10. CUSTOMIZER CLOTHING TABS — glass interactive buttons
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.clothing-tab {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border: 1px solid rgba(255, 255, 255, 0.55) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
+  border-radius: 10px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.70) !important;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s !important;
+}
+
+.clothing-tab:hover {
+  background: rgba(255, 255, 255, 0.26) !important;
+  transform: translateY(-1px) !important;
+}
+
+.clothing-tab.active {
+  background: rgba(220, 38, 38, 0.14) !important;
+  border-color: rgba(220, 38, 38, 0.35) !important;
+  color: var(--c-accent, #DC2626) !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   11. FOOTER — stays dark for contrast
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.footer {
+  background: rgba(8, 8, 12, 0.96) !important;
+  -webkit-backdrop-filter: blur(32px) !important;
+  backdrop-filter: blur(32px) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   12. PRELOADER — glass style
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preloader {
+  background:
+    radial-gradient(ellipse at 12% 10%, rgba(99, 102, 241, 0.52) 0%, transparent 48%),
+    radial-gradient(ellipse at 88% 55%, rgba(168, 85, 247, 0.46) 0%, transparent 48%),
+    radial-gradient(ellipse at 48% 95%, rgba(236, 72, 153, 0.38) 0%, transparent 44%),
+    linear-gradient(135deg, #c7d2fe 0%, #ddd6fe 25%, #fbcfe8 58%, #fed7aa 100%) !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   13. PHOTO SLIDERS — glass arrows and dots
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ep-photo-slider {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ep-slide {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.55s ease;
+  pointer-events: none;
+}
+
+.ep-slide.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ep-slider-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.70);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--c-accent, #DC2626);
+  z-index: 10;
+  padding: 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.80),
+    0 3px 10px rgba(0, 0, 0, 0.14);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.ep-slider-arrow:hover {
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 5px 16px rgba(0, 0, 0, 0.20);
+}
+
+.ep-slider-prev { left: 10px; }
+.ep-slider-next { right: 10px; }
+
+.ep-slider-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+}
+
+.ep-slider-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.70);
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.60);
+  transition: background 0.3s, transform 0.3s;
+  padding: 0;
+}
+
+.ep-slider-dot.active {
+  background: var(--c-accent, #DC2626);
+  transform: scale(1.35);
+  border-color: rgba(220, 38, 38, 0.50);
+}
+
+.service-card__slider {
+  width: 100%;
+  height: 200px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   14. ADMIN PHOTO THUMBNAILS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.photo-thumb-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.photo-thumb-item {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+.photo-thumb-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-thumb-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(220, 38, 38, 0.85);
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.photo-thumb-remove:hover { background: #DC2626; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   15. SVG LIQUID GLASS REFRACTION — edge distortion filter
+   Applied via filter: url(#lg-refract) on hover overlays.
+   The SVG itself is injected in index.html (0×0 hidden element).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Elements that get the SVG distortion filter on hover */
+.about__pillar:hover::before,
+.method-card:hover::before,
+.contact__card:hover::before {
+  filter: url(#lg-refract);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   16. ROUNDED ACCENT BUTTON — pill shape with glass inner highlight
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.btn--accent {
+  border-radius: 100px !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.30),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+    0 4px 18px rgba(220, 38, 38, 0.32),
+    0 1px 4px rgba(220, 38, 38, 0.20) !important;
+}
+
+.btn--accent:hover {
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.40),
+    0 6px 24px rgba(220, 38, 38, 0.45),
+    0 2px 6px rgba(220, 38, 38, 0.28) !important;
+  transform: translateY(-2px) !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   17. GLASS NAV LINKS — like the "О студии" section-label badge
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.nav__link {
+  background: rgba(255, 255, 255, 0.14) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.58) !important;
+  border-radius: 100px !important;
+  padding: 0.38em 1.1em !important;
+  color: var(--c-text, #111) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 1px 6px rgba(0, 0, 0, 0.05) !important;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease !important;
+}
+
+.nav__link:hover,
+.nav__link.active {
+  background: rgba(255, 255, 255, 0.30) !important;
+  color: var(--c-text, #111) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.90),
+    0 4px 16px rgba(0, 0, 0, 0.09) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Remove the underline pseudo-element — glass style replaces it */
+.nav__link::after { display: none !important; }
+
+/* Nav CTA button rounded too */
+.nav__cta.btn--accent,
+.nav__mobile-cta.btn--accent {
+  border-radius: 100px !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   18. GLASS CUSTOMIZER INFO PANEL
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.customizer__info {
+  background: var(--lg-bg) !important;
+  -webkit-backdrop-filter: var(--lg-blur) !important;
+  backdrop-filter: var(--lg-blur) !important;
+  border-left: 1px solid var(--lg-border) !important;
+  box-shadow: var(--lg-shadow) !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   19. GLASS SELECT / DROPDOWN — styled select box with custom arrow
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.calc__select-wrap {
+  position: relative !important;
+}
+
+.calc__select-wrap::after {
+  content: '▾' !important;
+  position: absolute !important;
+  right: 14px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  pointer-events: none !important;
+  color: var(--c-accent, #DC2626) !important;
+  font-size: 14px !important;
+  z-index: 1 !important;
+}
+
+.calc__select,
+select {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.68) !important;
+  border-radius: 12px !important;
+  padding: 10px 36px 10px 14px !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-size: 14px !important;
+  color: var(--c-text, #111) !important;
+  cursor: pointer !important;
+  width: 100% !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 2px 8px rgba(0, 0, 0, 0.05) !important;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s !important;
+}
+
+.calc__select:focus,
+select:focus {
+  background: rgba(255, 255, 255, 0.32) !important;
+  border-color: var(--c-accent, #DC2626) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.90),
+    0 0 0 3px rgba(220, 38, 38, 0.14) !important;
+  outline: none !important;
+}
+
+/* ── Calculator number inputs ──────────────────────────────────────────── */
+.calc__qty,
+input[type="number"].calc__qty {
+  background: rgba(255, 255, 255, 0.18) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.68) !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  color: var(--c-text, #111) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+}
+
+.calc__qty:focus {
+  border-color: var(--c-accent, #DC2626) !important;
+  background: rgba(255, 255, 255, 0.32) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.90),
+    0 0 0 3px rgba(220, 38, 38, 0.14) !important;
+  outline: none !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   20. FAQ ACCORDION PANEL — glass when expanded (details[open] .faq__a)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.faq__item[open] {
+  background: rgba(255, 255, 255, 0.10) !important;
+}
+
+.faq__item[open] .faq__a {
+  background: rgba(255, 255, 255, 0.20) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.55) !important;
+  border-radius: 12px !important;
+  padding: var(--sp-4, 1rem) var(--sp-5, 1.25rem) !important;
+  margin-bottom: var(--sp-4, 1rem) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 4px 16px rgba(0, 0, 0, 0.06) !important;
+}
+
+.faq__item[open] .faq__q {
+  color: var(--c-text, #111) !important;
+}
+
+/* ── Range slider glass thumb ──────────────────────────────────────────── */
+.ep-slider {
+  background: rgba(255, 255, 255, 0.35) !important;
+  border-radius: 99px !important;
+  height: 3px !important;
+}
+
+.ep-slider::-webkit-slider-thumb {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 2px solid var(--c-accent, #DC2626) !important;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.40),
+    0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.ep-slider::-moz-range-thumb {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 2px solid var(--c-accent, #DC2626) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   21. MOBILE MENU LINKS — glass pills
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.nav__mobile-link {
+  background: rgba(255, 255, 255, 0.14) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.58) !important;
+  border-radius: 100px !important;
+  padding: 0.5em 1.5em !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75) !important;
+  transition: background 0.2s, transform 0.15s !important;
+  font-size: 1.6rem !important;
+}
+
+.nav__mobile-link:hover {
+  background: rgba(255, 255, 255, 0.28) !important;
+  transform: translateY(-2px) !important;
+}

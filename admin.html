@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Easy Production — Админ-панель</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --a-bg:      #F4F6FA;
+      --a-surface: #FFFFFF;
+      --a-border:  #E2E6EF;
+      --a-accent:  #DC2626;
+      --a-accent2: #B91C1C;
+      --a-text:    #111827;
+      --a-text2:   #6B7280;
+      --a-sidebar: #1E2130;
+      --a-sidebar2:#282D42;
+      --a-success: #16A34A;
+      --a-warn:    #D97706;
+      --r:         10px;
+      --shadow:    0 1px 3px rgba(0,0,0,.10), 0 4px 16px rgba(0,0,0,.06);
+    }
+
+    body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; background: var(--a-bg); color: var(--a-text); height: 100vh; overflow: hidden; }
+
+    /* ── LOGIN ─────────────────────────────────────────────────────────────── */
+    #loginScreen {
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #1a1f35 0%, #2d1515 100%);
+    }
+    .login-box {
+      background: white; border-radius: 20px; padding: 48px 40px;
+      width: 360px; text-align: center; box-shadow: 0 24px 64px rgba(0,0,0,.35);
+    }
+    .login-logo { font-size: 28px; font-weight: 800; color: var(--a-accent); letter-spacing: -1px; margin-bottom: 6px; }
+    .login-sub { color: var(--a-text2); font-size: 13px; margin-bottom: 32px; }
+    .login-box input {
+      width: 100%; padding: 12px 16px; border: 1.5px solid var(--a-border);
+      border-radius: var(--r); font-size: 14px; margin-bottom: 12px;
+      transition: border-color .2s;
+    }
+    .login-box input:focus { outline: none; border-color: var(--a-accent); }
+    .login-btn {
+      width: 100%; padding: 13px; background: var(--a-accent); color: white;
+      border: none; border-radius: var(--r); font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: background .2s; margin-top: 4px;
+    }
+    .login-btn:hover { background: var(--a-accent2); }
+    .login-error { color: var(--a-accent); font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+    /* ── ADMIN SHELL ───────────────────────────────────────────────────────── */
+    #adminApp { display: none; flex-direction: column; height: 100vh; }
+
+    /* Topbar */
+    .topbar {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--a-surface); border-bottom: 1px solid var(--a-border);
+      padding: 0 20px; height: 56px; flex-shrink: 0;
+      box-shadow: var(--shadow);
+    }
+    .topbar__logo { font-weight: 800; font-size: 16px; color: var(--a-accent); letter-spacing: -.5px; margin-right: auto; }
+    .topbar__logo span { color: var(--a-text); font-weight: 400; font-size: 13px; margin-left: 8px; }
+    .tb-btn {
+      padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: 1.5px solid transparent; transition: all .18s;
+    }
+    .tb-btn--ghost { border-color: var(--a-border); background: transparent; color: var(--a-text2); }
+    .tb-btn--ghost:hover { border-color: var(--a-text2); color: var(--a-text); }
+    .tb-btn--primary { background: var(--a-accent); color: white; }
+    .tb-btn--primary:hover { background: var(--a-accent2); }
+    .tb-btn--success { background: var(--a-success); color: white; border-color: var(--a-success); }
+    .save-status { font-size: 12px; color: var(--a-text2); }
+
+    /* Layout */
+    .admin-body { display: flex; flex: 1; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px; background: var(--a-sidebar); color: #CBD5E1;
+      flex-shrink: 0; overflow-y: auto; padding: 16px 0;
+    }
+    .sidebar__section { font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+      color: #64748B; padding: 16px 20px 6px; text-transform: uppercase; }
+    .sidebar__link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 20px; cursor: pointer; font-size: 13.5px; border-radius: 0;
+      transition: background .15s, color .15s; color: #94A3B8;
+    }
+    .sidebar__link:hover { background: var(--a-sidebar2); color: white; }
+    .sidebar__link.active { background: rgba(220,38,38,.18); color: #FCA5A5; font-weight: 600; }
+    .sidebar__link .icon { width: 16px; text-align: center; }
+    .sidebar__link--between { justify-content: space-between; }
+    .sidebar__link-inner { display: flex; align-items: center; gap: 10px; }
+
+    /* Main editor area */
+    .editor-area {
+      flex: 1; overflow-y: auto; padding: 28px 32px;
+    }
+    .editor-panel { display: none; }
+    .editor-panel.active { display: block; }
+
+    .panel-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .panel-desc { color: var(--a-text2); font-size: 13px; margin-bottom: 24px; }
+
+    /* Form components */
+    .field-group { margin-bottom: 20px; }
+    .field-group label { display: block; font-size: 12px; font-weight: 600; color: var(--a-text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .6px; }
+    .field-group input[type="text"],
+    .field-group input[type="color"],
+    .field-group input[type="url"],
+    .field-group textarea,
+    .field-group select {
+      width: 100%; padding: 10px 14px; border: 1.5px solid var(--a-border);
+      border-radius: 8px; font-size: 14px; font-family: inherit;
+      background: var(--a-surface); transition: border-color .2s; color: var(--a-text);
+    }
+    .field-group input:focus,
+    .field-group textarea:focus,
+    .field-group select:focus { outline: none; border-color: var(--a-accent); }
+    .field-group textarea { resize: vertical; min-height: 80px; }
+    .field-group input[type="color"] { height: 44px; padding: 4px 6px; cursor: pointer; }
+
+    .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .fields-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    .card { background: var(--a-surface); border-radius: var(--r); border: 1px solid var(--a-border); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+    .card__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .card__title { font-weight: 700; font-size: 15px; }
+
+    /* Table for calc config */
+    .config-table { width: 100%; border-collapse: collapse; }
+    .config-table th { font-size: 11px; font-weight: 700; color: var(--a-text2); text-transform: uppercase; letter-spacing: .6px; padding: 8px 12px; text-align: left; border-bottom: 2px solid var(--a-border); }
+    .config-table td { padding: 6px 8px; border-bottom: 1px solid var(--a-border); }
+    .config-table td input { width: 100%; padding: 6px 10px; border: 1.5px solid var(--a-border); border-radius: 6px; font-size: 13px; font-family: inherit; }
+    .config-table td input:focus { outline: none; border-color: var(--a-accent); }
+
+    /* Portfolio item list */
+    .portfolio-item {
+      display: grid; grid-template-columns: 1fr 1fr 1fr 100px; gap: 10px;
+      align-items: center; padding: 10px 0; border-bottom: 1px solid var(--a-border);
+    }
+    .portfolio-item:last-child { border-bottom: none; }
+    .btn-icon { background: none; border: 1.5px solid var(--a-border); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; color: var(--a-text2); transition: all .15s; }
+    .btn-icon:hover { border-color: var(--a-accent); color: var(--a-accent); }
+    .btn-icon.danger:hover { border-color: #EF4444; color: #EF4444; }
+
+    /* FAQ item */
+    .faq-item { background: var(--a-surface); border: 1px solid var(--a-border); border-radius: var(--r); padding: 16px; margin-bottom: 12px; }
+    .faq-item__row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .faq-num { font-size: 11px; font-weight: 700; color: var(--a-text2); text-transform: uppercase; }
+
+    /* Toast notification */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+      border-radius: 10px; font-size: 14px; font-weight: 500;
+      opacity: 0; transform: translateY(10px);
+      transition: all .3s; pointer-events: none; z-index: 9999;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.success { background: var(--a-success); color: white; }
+    #toast.error { background: var(--a-accent); color: white; }
+
+    /* Color preview */
+    .color-preview { display: flex; align-items: center; gap: 10px; }
+    .color-preview .swatch { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--a-border); }
+
+    hr.sep { border: none; border-top: 1px solid var(--a-border); margin: 20px 0; }
+
+    .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; background: rgba(220,38,38,.12); color: var(--a-accent); margin-left: 8px; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--a-border); border-radius: 3px; }
+
+    /* ── Photo upload UI ─────────────────────────────────────────────────────── */
+    .upload-area { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 12px; background: var(--a-bg); border: 1.5px dashed var(--a-border); border-radius: 10px; }
+    .upload-area--compact { padding: 6px 8px; margin-bottom: 0; background: transparent; border: none; }
+    .upload-thumb { width: 72px; height: 72px; border-radius: 10px; object-fit: cover; border: 1.5px solid var(--a-border); flex-shrink: 0; display: none; }
+    .upload-area--compact .upload-thumb { width: 48px; height: 48px; border-radius: 6px; }
+    #aboutImgArea .upload-thumb { width: 96px; height: 72px; }
+    [data-img-remove] { display: none; }
+    .upload-area__hint { margin: 0; font-size: 11px; }
+    .upload-placeholder { width: 72px; height: 72px; border-radius: 10px; border: 1.5px dashed var(--a-border); background: var(--a-surface); display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--a-text2); flex-shrink: 0; }
+    .upload-area--compact .upload-placeholder { width: 48px; height: 48px; font-size: 16px; border-radius: 6px; }
+    .upload-actions { display: flex; flex-direction: column; gap: 6px; }
+    .portfolio-input { padding: 6px 10px; border: 1.5px solid var(--a-border); border-radius: 6px; font-size: 13px; width: 100%; font-family: inherit; }
+    .portfolio-input:focus { outline: none; border-color: var(--a-accent); }
+    /* Override portfolio-row grid to include photo column */
+    .portfolio-row { grid-template-columns: 160px 1fr 1fr 1fr 80px 36px !important; align-items: start; }
+    .portfolio-table-header { grid-template-columns: 160px 2fr 2fr 2fr 80px 36px !important; }
+
+    /* ── Utility classes (replaces inline styles) ──────────────────────────── */
+    .login-hint { margin-top: 16px; color: #9CA3AF; font-size: 12px; }
+    .card__title--mb  { margin-bottom: 16px; }
+    .card__title--mb12 { margin-bottom: 12px; }
+    .card__title--mb8  { margin-bottom: 8px; }
+    .portfolio-table-header {
+      display: grid; grid-template-columns: 82px 2fr 2fr 2fr 80px 36px;
+      gap: 8px; padding: 8px 0; border-bottom: 2px solid var(--a-border);
+      font-size: 11px; font-weight: 700; color: var(--a-text2);
+      text-transform: uppercase; letter-spacing: .6px;
+    }
+    .btn-icon--mt { margin-top: 8px; }
+    .hex-display { font-family: monospace; font-size: 13px; }
+    .card--danger { background: rgba(220,38,38,.05); border-color: rgba(220,38,38,.2); }
+    .card__hint { color: var(--a-text2); font-size: 13px; margin-bottom: 12px; }
+    .code--accent { font-size: 12px; color: var(--a-accent); }
+    .tb-btn--danger { background: #EF4444; color: white; border-color: #EF4444; }
+    .tb-btn--danger:hover { background: #DC2626; border-color: #DC2626; }
+
+    /* ── Photo thumb grid ────────────────────────────────────────────────────── */
+    .photo-thumb-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+    .photo-thumb-item { position: relative; }
+    .photo-thumb-item img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1.5px solid var(--a-border); display: block; }
+    .photo-thumb-remove { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: var(--a-accent); color: white; border: none; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .photo-thumb-remove:hover { background: var(--a-accent2); }
+
+    /* ── Model status indicators ─────────────────────────────────────────────── */
+    .model-status--ok   { color: var(--a-success); font-size: 12px; font-weight: 600; }
+    .model-status--none { color: var(--a-text2);   font-size: 12px; }
+
+    /* ── Design panel helpers ─────────────────────────────────────────────────── */
+    .hidden-field         { display: none; }
+    .field-group--mt      { margin-top: 12px; }
+    .upload-area--mb      { margin-bottom: 8px; }
+    .hint--sm             { font-size: 11px; }
+    .bg-preview-thumb     { width: 120px; height: 80px; object-fit: cover; border-radius: 8px; border: 1.5px solid var(--a-border); }
+    .font-preview-box     { margin-top: 10px; padding: 12px; border: 1.5px solid var(--a-border); border-radius: 8px; font-size: 18px; }
+
+    /* ── Mobile responsive ────────────────────────────────────────────────────── */
+    .topbar__hamburger {
+      display: none; align-items: center; justify-content: center;
+      width: 40px; height: 40px; border: none; background: transparent;
+      cursor: pointer; border-radius: 8px; color: var(--a-text); font-size: 20px;
+      flex-shrink: 0; transition: background .15s;
+    }
+    .topbar__hamburger:hover { background: var(--a-bg); }
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 200; cursor: pointer;
+    }
+    .sidebar-overlay.open { display: block; }
+
+    @media (max-width: 768px) {
+      body { overflow: auto; }
+      #adminApp { height: auto; min-height: 100vh; overflow: auto; }
+      .topbar__hamburger { display: flex; }
+      .topbar { padding: 0 12px; gap: 8px; }
+      .topbar__logo span { display: none; }
+      .save-status { display: none; }
+      /* Hide export + preview on mobile; keep Save + Logout */
+      .tb-btn--ghost.hide-mobile { display: none; }
+
+      /* Sidebar becomes fixed overlay */
+      .sidebar {
+        position: fixed; top: 0; left: 0; bottom: 0;
+        z-index: 300; transform: translateX(-100%);
+        transition: transform .25s ease; box-shadow: none;
+        width: 240px;
+      }
+      .sidebar.open {
+        transform: translateX(0);
+        box-shadow: 4px 0 24px rgba(0,0,0,.35);
+      }
+
+      .admin-body { flex-direction: column; overflow: auto; }
+      .editor-area { padding: 16px 14px; overflow: visible; }
+
+      /* Fields grid → single col */
+      .fields-grid { grid-template-columns: 1fr !important; }
+
+      /* Portfolio table → horizontal scroll */
+      .portfolio-table-header,
+      #portfolioList { overflow-x: auto; }
+      .portfolio-row,
+      .portfolio-table-header {
+        grid-template-columns: 120px 1fr 1fr 80px 36px !important;
+        min-width: 520px;
+      }
+
+      /* Config tables → horizontal scroll */
+      .card { overflow-x: auto; }
+      .config-table { min-width: 480px; }
+
+      /* Cards smaller padding */
+      .card { padding: 14px 12px; }
+      .order-card__header { padding: 12px 14px 8px; }
+      .order-card__body { padding: 10px 14px; }
+      .order-card__actions { padding: 8px 14px 12px; }
+
+      /* Touch-friendly buttons */
+      .tb-btn { min-height: 40px; padding: 7px 12px; font-size: 12px; }
+      .btn-icon { min-height: 36px; min-width: 36px; }
+      .btn-order-action { min-height: 40px; }
+      .sidebar__link { min-height: 44px; }
+
+      /* Login box full width */
+      .login-box { width: calc(100vw - 32px); padding: 36px 24px; }
+    }
+
+    @media (max-width: 480px) {
+      .editor-area { padding: 12px 10px; }
+      .panel-title { font-size: 17px; }
+      .topbar { height: 50px; }
+    }
+
+    /* ── Orders badge ─────────────────────────────────────────────────────────── */
+    .orders-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 18px; height: 18px; padding: 0 5px;
+      background: var(--a-accent); color: white; border-radius: 9px;
+      font-size: 11px; font-weight: 700; margin-left: auto;
+    }
+
+    /* ── Order cards ──────────────────────────────────────────────────────────── */
+    #ordersContainer { display: flex; flex-direction: column; gap: 16px; }
+    .orders-empty { color: var(--a-text2); font-size: 14px; padding: 24px 0; text-align: center; }
+    .order-card {
+      border: 1.5px solid var(--a-border); border-radius: 14px; background: var(--a-surface);
+      overflow: hidden; transition: box-shadow .2s;
+    }
+    .order-card--new { border-color: #FBBF24; box-shadow: 0 0 0 3px rgba(251,191,36,.12); }
+    .order-card__header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px 10px; border-bottom: 1px solid var(--a-border);
+      gap: 12px; flex-wrap: wrap;
+    }
+    .order-card__name { font-weight: 700; font-size: 15px; margin-right: 8px; }
+    .order-badge-new  { display: inline-block; padding: 2px 10px; border-radius: 20px; background: #FEF3C7; color: #92400E; font-size: 11px; font-weight: 700; }
+    .order-badge-done { display: inline-block; padding: 2px 10px; border-radius: 20px; background: #D1FAE5; color: #065F46; font-size: 11px; font-weight: 700; }
+    .order-card__date { font-size: 12px; color: var(--a-text2); white-space: nowrap; }
+    .order-card__design img { width: 100%; max-height: 180px; object-fit: contain; background: #f8f9fc; border-bottom: 1px solid var(--a-border); display: block; }
+    .order-card__body { padding: 12px 18px; display: flex; flex-direction: column; gap: 6px; }
+    .order-card__row { display: flex; gap: 8px; font-size: 13px; align-items: flex-start; }
+    .order-card__row a { color: var(--a-accent); text-decoration: none; }
+    .order-card__comment { color: var(--a-text2); }
+    .order-card__quote { font-size: 12px; color: var(--a-text2); background: var(--a-bg); border-radius: 8px; padding: 6px 10px; }
+    .order-card__source { font-size: 11px; color: var(--a-text2); margin-top: 4px; }
+    .order-card__actions { display: flex; gap: 8px; padding: 10px 18px 14px; flex-wrap: wrap; }
+    .btn-order-action { padding: 7px 16px; border-radius: 8px; border: 1.5px solid; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; }
+    .btn-order-done { border-color: #16A34A; color: #16A34A; background: transparent; }
+    .btn-order-done:hover { background: #16A34A; color: white; }
+    .btn-order-del  { border-color: var(--a-border); color: var(--a-text2); background: transparent; }
+    .btn-order-del:hover  { border-color: var(--a-accent); color: var(--a-accent); }
+  </style>
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ────────────────────────────────────────────────────────── -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">Easy Production</div>
+    <div class="login-sub">Панель управления сайтом</div>
+    <input type="text" id="loginUser" placeholder="Логин" autocomplete="username" />
+    <input type="password" id="loginPass" placeholder="Пароль" autocomplete="current-password" />
+    <button class="login-btn" onclick="Auth.doLogin()">Войти</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-hint">Дефолт: admin / admin123</div>
+  </div>
+</div>
+
+<!-- ── ADMIN APP ───────────────────────────────────────────────────────────── -->
+<div id="adminApp">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <button class="topbar__hamburger" id="sidebarToggle" aria-label="Открыть меню">&#9776;</button>
+    <div class="topbar__logo">EP Admin <span>Панель управления</span></div>
+    <span class="save-status" id="saveStatus"></span>
+    <button class="tb-btn tb-btn--ghost hide-mobile" onclick="Admin.preview()">👁 Превью</button>
+    <button class="tb-btn tb-btn--ghost hide-mobile" onclick="Admin.exportJSON()">⬇ JSON</button>
+    <button class="tb-btn tb-btn--primary" onclick="Admin.save()">💾 Сохранить</button>
+    <button class="tb-btn tb-btn--ghost" onclick="Auth.logout()">Выйти</button>
+  </header>
+
+  <div class="admin-body">
+
+    <!-- Sidebar overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="adminSidebar">
+      <div class="sidebar__section">Заявки</div>
+      <div class="sidebar__link sidebar__link--between" onclick="Admin.show('orders')" data-panel="orders">
+        <span class="sidebar__link-inner"><span class="icon">📥</span>Заявки</span>
+        <span class="orders-badge" id="ordersBadge" hidden>0</span>
+      </div>
+      <div class="sidebar__section">Контент</div>
+      <div class="sidebar__link active" onclick="Admin.show('hero')" data-panel="hero"><span class="icon">🏠</span>Главная (Hero)</div>
+      <div class="sidebar__link" onclick="Admin.show('about')" data-panel="about"><span class="icon">ℹ️</span>О студии</div>
+      <div class="sidebar__link" onclick="Admin.show('services')" data-panel="services"><span class="icon">🧵</span>Услуги</div>
+      <div class="sidebar__link" onclick="Admin.show('process')" data-panel="process"><span class="icon">📋</span>Процесс</div>
+      <div class="sidebar__link" onclick="Admin.show('portfolio')" data-panel="portfolio"><span class="icon">🖼</span>Портфолио</div>
+      <div class="sidebar__link" onclick="Admin.show('faq')" data-panel="faq"><span class="icon">❓</span>FAQ</div>
+      <div class="sidebar__link" onclick="Admin.show('contact')" data-panel="contact"><span class="icon">📬</span>Контакты</div>
+      <div class="sidebar__section">Настройки</div>
+      <div class="sidebar__link" onclick="Admin.show('models')" data-panel="models"><span class="icon">📦</span>3D Модели</div>
+      <div class="sidebar__link" onclick="Admin.show('calculator')" data-panel="calculator"><span class="icon">🧮</span>Калькулятор</div>
+      <div class="sidebar__link" onclick="Admin.show('design')" data-panel="design"><span class="icon">🎨</span>Дизайн</div>
+    </nav>
+
+    <!-- Editor area -->
+    <main class="editor-area" id="editorArea">
+
+      <!-- ORDERS -->
+      <section class="editor-panel" id="panel-orders">
+        <div class="panel-title">Заявки <span class="badge hidden-field" id="ordersPanelBadge"></span></div>
+        <div class="panel-desc">Заявки от пользователей сайта — из формы заказа, конструктора и контакт-формы.</div>
+        <div class="card">
+          <div id="ordersContainer">
+            <p class="orders-empty">Загрузка...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- HERO -->
+      <section class="editor-panel active" id="panel-hero">
+        <div class="panel-title">Главная секция (Hero)</div>
+        <div class="panel-desc">Заголовок, подзаголовок, кнопки и статистика на главной странице.</div>
+        <div class="card">
+          <div class="card__title card__title--mb">Тексты</div>
+          <div class="field-group"><label>Тег-строка (eyebrow)</label><input type="text" data-key="hero.eyebrow" /></div>
+          <div class="fields-grid">
+            <div class="field-group"><label>Заголовок — строка 1</label><input type="text" data-key="hero.titleLine1" /></div>
+            <div class="field-group"><label>Заголовок — строка 2</label><input type="text" data-key="hero.titleLine2" /></div>
+            <div class="field-group"><label>Заголовок — строка 3</label><input type="text" data-key="hero.titleLine3" /></div>
+          </div>
+          <div class="field-group"><label>Подзаголовок</label><textarea data-key="hero.subtitle"></textarea></div>
+          <div class="fields-grid">
+            <div class="field-group"><label>Кнопка 1 (CTA)</label><input type="text" data-key="hero.ctaPrimary" /></div>
+            <div class="field-group"><label>Кнопка 2</label><input type="text" data-key="hero.ctaSecondary" /></div>
+          </div>
+          <div class="field-group">
+            <label>Фото Hero (до 4 фото — слайдер на главной)</label>
+            <div id="heroPhotosContainer"></div>
+            <button class="btn-icon btn-icon--mt" onclick="uploadSectionPhotos('hero')">&#128247; Добавить фото</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__title card__title--mb">Статистика</div>
+          <div class="fields-grid cols3">
+            <div class="field-group"><label>Значение 1</label><input type="text" data-key="hero.stat1Value" /></div>
+            <div class="field-group"><label>Подпись 1</label><input type="text" data-key="hero.stat1Label" /></div>
+          </div>
+          <div class="fields-grid cols3">
+            <div class="field-group"><label>Значение 2</label><input type="text" data-key="hero.stat2Value" /></div>
+            <div class="field-group"><label>Подпись 2</label><input type="text" data-key="hero.stat2Label" /></div>
+          </div>
+          <div class="fields-grid cols3">
+            <div class="field-group"><label>Значение 3</label><input type="text" data-key="hero.stat3Value" /></div>
+            <div class="field-group"><label>Подпись 3</label><input type="text" data-key="hero.stat3Label" /></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ABOUT -->
+      <section class="editor-panel" id="panel-about">
+        <div class="panel-title">О студии</div>
+        <div class="panel-desc">Раздел с описанием компании и ключевыми преимуществами.</div>
+        <div class="card">
+          <div class="field-group"><label>Тег-строка</label><input type="text" data-key="about.label" /></div>
+          <div class="field-group"><label>Заголовок</label><input type="text" data-key="about.title" /></div>
+          <div class="field-group"><label>Абзац 1</label><textarea data-key="about.text1"></textarea></div>
+          <div class="field-group"><label>Абзац 2</label><textarea data-key="about.text2"></textarea></div>
+          <div class="field-group">
+            <label>Фото студии (до 4 фото — слайдер в секции О нас)</label>
+            <div id="aboutPhotosContainer"></div>
+            <button class="btn-icon btn-icon--mt" onclick="uploadSectionPhotos('about')">&#128247; Добавить фото</button>
+          </div>
+          <hr class="sep">
+          <div class="card__title card__title--mb">4 столпа</div>
+          <div class="fields-grid">
+            <div class="field-group"><label>Столп 1</label><input type="text" data-key="about.pillar1" /></div>
+            <div class="field-group"><label>Столп 2</label><input type="text" data-key="about.pillar2" /></div>
+            <div class="field-group"><label>Столп 3</label><input type="text" data-key="about.pillar3" /></div>
+            <div class="field-group"><label>Столп 4</label><input type="text" data-key="about.pillar4" /></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SERVICES -->
+      <section class="editor-panel" id="panel-services">
+        <div class="panel-title">Услуги</div>
+        <div class="panel-desc">Четыре карточки услуг.</div>
+        <div class="card">
+          <div class="fields-grid">
+            <div class="field-group"><label>Тег-строка</label><input type="text" data-key="services.label" /></div>
+            <div class="field-group"><label>Заголовок</label><input type="text" data-key="services.title" /></div>
+          </div>
+        </div>
+        <div id="serviceCardsContainer"></div>
+      </section>
+
+      <!-- PROCESS -->
+      <section class="editor-panel" id="panel-process">
+        <div class="panel-title">Процесс работы</div>
+        <div class="panel-desc">5 шагов от заявки до доставки.</div>
+        <div class="card">
+          <div class="fields-grid">
+            <div class="field-group"><label>Тег-строка</label><input type="text" data-key="process.label" /></div>
+            <div class="field-group"><label>Заголовок</label><input type="text" data-key="process.title" /></div>
+          </div>
+        </div>
+        <div id="processStepsContainer"></div>
+      </section>
+
+      <!-- PORTFOLIO -->
+      <section class="editor-panel" id="panel-portfolio">
+        <div class="panel-title">Портфолио</div>
+        <div class="panel-desc">Карточки работ. Изображения хранятся в IndexedDB (без ограничений).</div>
+        <div class="card">
+          <div class="fields-grid">
+            <div class="field-group"><label>Тег-строка</label><input type="text" data-key="portfolio.label" /></div>
+            <div class="field-group"><label>Заголовок</label><input type="text" data-key="portfolio.title" /></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__header">
+            <div class="card__title">Проекты</div>
+            <button class="btn-icon" onclick="Editor.addPortfolioItem()">+ Добавить</button>
+          </div>
+          <div class="portfolio-table-header">
+            <span>Фото</span><span>Название</span><span>Клиент</span><span>Метод</span><span>Тег</span><span></span>
+          </div>
+          <div id="portfolioList"></div>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="editor-panel" id="panel-faq">
+        <div class="panel-title">Часто задаваемые вопросы</div>
+        <div class="panel-desc">Редактируйте вопросы и ответы.</div>
+        <div class="card">
+          <div class="fields-grid">
+            <div class="field-group"><label>Тег-строка</label><input type="text" data-key="faq.label" /></div>
+            <div class="field-group"><label>Заголовок</label><input type="text" data-key="faq.title" /></div>
+          </div>
+        </div>
+        <div id="faqList"></div>
+        <button class="btn-icon btn-icon--mt" onclick="Editor.addFaqItem()">+ Добавить вопрос</button>
+      </section>
+
+      <!-- CONTACT -->
+      <section class="editor-panel" id="panel-contact">
+        <div class="panel-title">Контакты</div>
+        <div class="panel-desc">Контактная информация и ссылки.</div>
+        <div class="card">
+          <div class="fields-grid">
+            <div class="field-group"><label>Тег-строка</label><input type="text" data-key="contact.label" /></div>
+            <div class="field-group"><label>Заголовок</label><input type="text" data-key="contact.title" /></div>
+          </div>
+          <div class="field-group"><label>Описание</label><textarea data-key="contact.desc"></textarea></div>
+          <hr class="sep">
+          <div class="fields-grid">
+            <div class="field-group"><label>Telegram URL</label><input type="url" data-key="contact.telegram" /></div>
+            <div class="field-group"><label>WhatsApp URL</label><input type="url" data-key="contact.whatsapp" /></div>
+            <div class="field-group"><label>Email</label><input type="text" data-key="contact.email" /></div>
+            <div class="field-group"><label>Телефон</label><input type="text" data-key="contact.phone" /></div>
+            <div class="field-group"><label>Адрес</label><input type="text" data-key="contact.address" /></div>
+            <div class="field-group"><label>Часы работы</label><input type="text" data-key="contact.workHours" /></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3D MODELS -->
+      <section class="editor-panel" id="panel-models">
+        <div class="panel-title">3D Модели конструктора <span class="badge">GLB</span></div>
+        <div class="panel-desc">Загрузите .glb файлы для каждого вида одежды. Если модель загружена — она отображается в конструкторе на сайте вместо процедурной геометрии.</div>
+        <div class="card">
+          <div class="card__hint">Модели хранятся в IndexedDB браузера. Поддерживается любой .glb/.gltf файл. Текстура нанесения накладывается поверх модели автоматически.</div>
+        </div>
+        <div id="modelsContainer"></div>
+      </section>
+
+      <!-- CALCULATOR CONFIG -->
+      <section class="editor-panel" id="panel-calculator">
+        <div class="panel-title">Калькулятор <span class="badge">Цены</span></div>
+        <div class="panel-desc">Базовая стоимость нанесения и все коэффициенты цен. Изменения вступают в силу сразу после сохранения.</div>
+        <div class="card">
+          <div class="card__title card__title--mb12">Базовая стоимость нанесения</div>
+          <div class="fields-grid">
+            <div class="field-group"><label>Базовая цена (₽)</label><input type="text" id="calc-printBase" /></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card__title card__title--mb12">Изделия — базовые цены</div>
+          <table class="config-table" id="calc-products"></table>
+        </div>
+        <div class="card">
+          <div class="card__title card__title--mb12">Способы нанесения</div>
+          <table class="config-table" id="calc-methods"></table>
+        </div>
+        <div class="card">
+          <div class="card__title card__title--mb12">Размеры принта — надбавки (₽)</div>
+          <table class="config-table" id="calc-sizes"></table>
+        </div>
+        <div class="card">
+          <div class="card__title card__title--mb12">Скидки за объём</div>
+          <table class="config-table" id="calc-tiers"></table>
+        </div>
+      </section>
+
+      <!-- DESIGN -->
+      <section class="editor-panel" id="panel-design">
+        <div class="panel-title">Дизайн и настройки</div>
+        <div class="panel-desc">Шрифт, цвета, фон и мета-данные. Все изменения применяются на сайте при загрузке страницы.</div>
+
+        <!-- Meta -->
+        <div class="card">
+          <div class="card__title card__title--mb">Мета-данные</div>
+          <div class="field-group"><label>Заголовок вкладки</label><input type="text" data-key="site.title" /></div>
+          <div class="field-group"><label>Описание (meta)</label><textarea data-key="site.description"></textarea></div>
+        </div>
+
+        <!-- Colors -->
+        <div class="card">
+          <div class="card__title card__title--mb">Цвета</div>
+          <div class="fields-grid">
+            <div class="field-group">
+              <label>Акцентный цвет</label>
+              <div class="color-preview">
+                <input type="color" data-key="site.accentColor" id="accentColorInput" value="#DC2626" />
+                <span id="accentColorHex" class="hex-display">#DC2626</span>
+              </div>
+            </div>
+            <div class="field-group">
+              <label>Цвет текста</label>
+              <div class="color-preview">
+                <input type="color" data-key="site.textColor" id="textColorInput" value="#111111" />
+                <span id="textColorHex" class="hex-display">#111111</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Font -->
+        <div class="card">
+          <div class="card__title card__title--mb">Шрифт сайта</div>
+          <div class="card__hint">Выберите гарнитуру. Google Fonts загружаются автоматически на основном сайте.</div>
+          <div class="field-group field-group--mt">
+            <label>Семейство шрифтов</label>
+            <select data-key="site.fontFamily" id="fontFamilySelect">
+              <option value="">— По умолчанию (Inter) —</option>
+              <optgroup label="Системные">
+                <option value="system-ui">System UI</option>
+                <option value="Arial">Arial</option>
+                <option value="Georgia">Georgia</option>
+              </optgroup>
+              <optgroup label="Google Fonts — Гротески">
+                <option value="Roboto">Roboto</option>
+                <option value="Open Sans">Open Sans</option>
+                <option value="Lato">Lato</option>
+                <option value="Montserrat">Montserrat</option>
+                <option value="Poppins">Poppins</option>
+                <option value="Raleway">Raleway</option>
+                <option value="Nunito">Nunito</option>
+                <option value="Oswald">Oswald</option>
+                <option value="Mulish">Mulish</option>
+              </optgroup>
+              <optgroup label="Google Fonts — Засечки">
+                <option value="Playfair Display">Playfair Display</option>
+                <option value="Merriweather">Merriweather</option>
+                <option value="PT Serif">PT Serif</option>
+              </optgroup>
+            </select>
+          </div>
+          <div id="fontPreviewBox" class="font-preview-box hidden-field">
+            Быстрая бурая лиса перепрыгивает через ленивую собаку — Easy Production
+          </div>
+        </div>
+
+        <!-- Background -->
+        <div class="card">
+          <div class="card__title card__title--mb">Фон сайта</div>
+          <div class="field-group">
+            <label>Тип фона</label>
+            <select data-key="site.bgType" id="bgTypeSelect">
+              <option value="">— По умолчанию —</option>
+              <option value="color">Цвет</option>
+              <option value="image">Фоновое фото</option>
+            </select>
+          </div>
+          <div id="bgColorField" class="hidden-field">
+            <div class="field-group">
+              <label>Цвет фона</label>
+              <div class="color-preview">
+                <input type="color" data-key="site.bgColor" id="bgColorInput" value="#ffffff" />
+                <span id="bgColorHex" class="hex-display">#ffffff</span>
+              </div>
+            </div>
+          </div>
+          <div id="bgImageField" class="hidden-field">
+            <div class="field-group"><label>Фоновое изображение</label></div>
+            <div class="upload-area upload-area--mb">
+              <div class="upload-placeholder" id="bgImgPlaceholder">🖼</div>
+              <img id="bgImgPreview" class="bg-preview-thumb hidden-field" alt="Фон" />
+              <div class="upload-actions">
+                <button class="btn-icon" onclick="uploadSiteBg()">📷 Загрузить фото</button>
+                <button class="btn-icon danger hidden-field" id="bgImgRemove" onclick="removeSiteBg()">🗑 Удалить</button>
+              </div>
+            </div>
+            <div class="card__hint hint--sm">Рекомендуется JPG, 1920×1080px+. Фото хранится в IndexedDB.</div>
+          </div>
+        </div>
+
+        <div class="card card--danger">
+          <div class="card__title card__title--mb8">🔑 Смена пароля</div>
+          <div class="card__hint">Пароль хранится в admin/auth.js. Для смены отредактируйте файл напрямую.</div>
+          <code class="code--accent">ADMIN_PASSWORD = 'admin123'</code>
+        </div>
+        <div class="card">
+          <div class="card__title card__title--mb8">🗑 Сброс данных</div>
+          <div class="card__hint">Удаляет все сохранённые изменения и возвращает исходные тексты.</div>
+          <button class="tb-btn tb-btn--danger" onclick="Admin.reset()">Сбросить все изменения</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/db.js"></script>
+<script src="admin/auth.js"></script>
+<script src="admin/uploader.js"></script>
+<script src="admin/editor.js"></script>
+<script src="admin/calculator-config.js"></script>
+<script>
+  // ── Mobile sidebar toggle ──────────────────────────────────────────────────
+  (function () {
+    var toggle  = document.getElementById('sidebarToggle');
+    var sidebar = document.getElementById('adminSidebar');
+    var overlay = document.getElementById('sidebarOverlay');
+
+    function openSidebar()  { sidebar.classList.add('open'); overlay.classList.add('open'); }
+    function closeSidebar() { sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+
+    toggle.addEventListener('click', function () {
+      sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+    });
+    overlay.addEventListener('click', closeSidebar);
+
+    // Close sidebar when a nav link is clicked on mobile
+    sidebar.addEventListener('click', function (e) {
+      if (window.innerWidth <= 768 && e.target.closest('.sidebar__link')) {
+        closeSidebar();
+      }
+    });
+  }());
+
+  // Boot
+  if (Auth.isAuthenticated()) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('adminApp').style.display = 'flex';
+    Admin.init();
+  }
+
+  document.getElementById('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPass').focus(); });
+  document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') Auth.doLogin(); });
+
+  // Color pickers — live hex display
+  document.addEventListener('input', e => {
+    const key = e.target.dataset.key;
+    if (key === 'site.accentColor') document.getElementById('accentColorHex').textContent = e.target.value;
+    if (key === 'site.textColor')   document.getElementById('textColorHex').textContent   = e.target.value;
+    if (key === 'site.bgColor')     document.getElementById('bgColorHex').textContent     = e.target.value;
+  });
+
+  // bgType select — show/hide sub-fields
+  function updateBgTypeVisibility(val) {
+    document.getElementById('bgColorField').classList.toggle('hidden-field', val !== 'color');
+    document.getElementById('bgImageField').classList.toggle('hidden-field', val !== 'image');
+  }
+  document.getElementById('bgTypeSelect').addEventListener('change', function () {
+    updateBgTypeVisibility(this.value);
+  });
+
+  // Font select — live preview + load Google Font in admin
+  const SYSTEM_FONTS = ['', 'system-ui', 'Arial', 'Georgia'];
+  document.getElementById('fontFamilySelect').addEventListener('change', function () {
+    const font = this.value;
+    const previewBox = document.getElementById('fontPreviewBox');
+    if (!font) {
+      previewBox.classList.add('hidden-field');
+      document.querySelector('.editor-area').style.fontFamily = '';
+      return;
+    }
+    if (!SYSTEM_FONTS.includes(font)) {
+      const id = 'gf-' + font.replace(/\s+/g, '-');
+      if (!document.getElementById(id)) {
+        const link = document.createElement('link');
+        link.id   = id;
+        link.rel  = 'stylesheet';
+        link.href = 'https://fonts.googleapis.com/css2?family=' + font.replace(/ /g, '+') + ':wght@400;700&display=swap';
+        document.head.appendChild(link);
+      }
+    }
+    previewBox.classList.remove('hidden-field');
+    previewBox.style.fontFamily = '"' + font + '", system-ui, sans-serif';
+    document.querySelector('.editor-area').style.fontFamily = '"' + font + '", system-ui, sans-serif';
+  });
+
+  // Restore design panel state after init
+  setTimeout(function () {
+    const bgType = document.getElementById('bgTypeSelect').value;
+    updateBgTypeVisibility(bgType);
+    // Restore text/bg color hex displays
+    const tc = document.getElementById('textColorInput');
+    if (tc && tc.value) document.getElementById('textColorHex').textContent = tc.value;
+    const bc = document.getElementById('bgColorInput');
+    if (bc && bc.value) document.getElementById('bgColorHex').textContent = bc.value;
+    // Font preview
+    const ff = document.getElementById('fontFamilySelect').value;
+    if (ff) document.getElementById('fontFamilySelect').dispatchEvent(new Event('change'));
+  }, 450);
+
+  // Restore image previews for section images (hero, about) after init
+  function restoreSectionImgPreviews() {
+    const keys = ['hero.bgImage', 'about.image'];
+    keys.forEach(key => {
+      const saved = localStorage.getItem('ep_content');
+      if (!saved) return;
+      try {
+        const content = JSON.parse(saved);
+        const val = key.split('.').reduce((o, k) => o?.[k], content);
+        if (!val) return;
+        const preview = document.querySelector(`[data-img-preview="${key}"]`);
+        const placeholder = document.querySelector(`[data-img-placeholder="${key}"]`);
+        const removeBtn = document.querySelector(`[data-img-remove="${key}"]`);
+        if (preview) { preview.src = val; preview.style.display = 'block'; }
+        if (placeholder) placeholder.style.display = 'none';
+        if (removeBtn) removeBtn.style.display = '';
+      } catch (_) {}
+    });
+  }
+  // Run after Admin.init() resolves
+  setTimeout(restoreSectionImgPreviews, 400);
+</script>
+</body>
+</html>

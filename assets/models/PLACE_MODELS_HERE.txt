@@ -1,0 +1,17 @@
+Положите сюда 3D-модели одежды в формате .glb / .gltf:
+
+  tshirt.glb
+  hoodie.glb
+  longsleeve.glb
+  sweatshirt.glb
+  ziphoodie.glb
+  shorts.glb
+  pants.glb
+  hat.glb
+
+Где скачать бесплатно:
+  https://sketchfab.com/search?q=t-shirt&features=downloadable&sort_by=-likeCount
+  https://www.cgtrader.com/free-3d-models/clothing
+
+После добавления файлов раскомментируйте блок GLTFLoader в js/customizer.js
+(GLTF EXTENSION POINT) и подключите скрипт загрузчика.

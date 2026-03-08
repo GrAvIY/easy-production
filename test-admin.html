@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Easy Production</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+      font-size: 15px;
+      color: #111;
+      background: linear-gradient(135deg, #dbeafe 0%, #ede9fe 35%, #fce7f3 70%, #ffedd5 100%);
+      background-attachment: fixed;
+      padding: 40px 20px 100px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(59,130,246,0.30) 0%, transparent 40%),
+        radial-gradient(circle at 80% 60%, rgba(139,92,246,0.30) 0%, transparent 40%),
+        radial-gradient(circle at 50% 90%, rgba(236,72,153,0.25) 0%, transparent 35%),
+        radial-gradient(circle at 10% 75%, rgba(34,197,94,0.18) 0%, transparent 30%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #DC2626;
+      margin-bottom: 32px;
+      letter-spacing: -0.5px;
+    }
+
+    .glass {
+      background: rgba(255,255,255,0.55);
+      -webkit-backdrop-filter: blur(28px) saturate(200%);
+      backdrop-filter: blur(28px) saturate(200%);
+      border: 1px solid rgba(255,255,255,0.75);
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.90);
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #DC2626;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(220,38,38,0.15);
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: #6B7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 11px 14px;
+      background: rgba(255,255,255,0.65);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      border: 1.5px solid rgba(255,255,255,0.85);
+      border-radius: 12px;
+      font-size: 15px;
+      font-family: inherit;
+      color: #111;
+      margin-bottom: 20px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+
+    input[type="text"]:focus, textarea:focus {
+      border-color: #DC2626;
+      box-shadow: 0 0 0 3px rgba(220,38,38,0.12);
+      background: rgba(255,255,255,0.90);
+    }
+
+    textarea { resize: vertical; min-height: 80px; }
+
+    .upload-zone {
+      border: 2px dashed rgba(220,38,38,0.35);
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      background: rgba(220,38,38,0.04);
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 14px;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .upload-zone:hover { border-color: #DC2626; background: rgba(220,38,38,0.08); }
+    .upload-zone .zone-icon { font-size: 28px; margin-bottom: 6px; }
+    .upload-zone p { font-size: 13px; color: #6B7280; }
+
+    .previews {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .preview-item {
+      position: relative;
+      width: 80px; height: 80px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.90);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      flex-shrink: 0;
+    }
+
+    .preview-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .preview-item .rm {
+      position: absolute; top: 3px; right: 3px;
+      width: 18px; height: 18px;
+      background: rgba(220,38,38,0.92);
+      border: none; border-radius: 50%;
+      color: white; font-size: 11px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0;
+    }
+
+    .preview-item .rm:hover { background: #DC2626; }
+
+    .buttons { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+    .btn-save {
+      background: #DC2626;
+      color: white;
+      border: none;
+      border-radius: 16px;
+      padding: 14px 36px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(220,38,38,0.35);
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+
+    .btn-save:hover {
+      background: #B91C1C;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(220,38,38,0.40);
+    }
+
+    .btn-open {
+      background: rgba(255,255,255,0.55);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      color: #DC2626;
+      border: 1.5px solid rgba(220,38,38,0.30);
+      border-radius: 14px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-open:hover { background: rgba(255,255,255,0.80); }
+
+    .toast {
+      position: fixed;
+      bottom: 28px; right: 28px;
+      padding: 12px 22px;
+      border-radius: 12px;
+      font-size: 14px; font-weight: 600;
+      color: white;
+      background: #16A34A;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+      z-index: 9999;
+      max-width: 320px;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { background: #DC2626; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Admin Panel</h1>
+
+  <!-- HERO -->
+  <div class="glass">
+    <div class="section-title">Hero секция</div>
+
+    <label for="heroTitle">Заголовок</label>
+    <input type="text" id="heroTitle" placeholder="Одежда, которую запоминают." />
+
+    <label for="heroSubtitle">Подзаголовок</label>
+    <textarea id="heroSubtitle" placeholder="Корпоративный мерч, fashion-марки..."></textarea>
+
+    <label>Фото (можно несколько)</label>
+    <div class="upload-zone" id="heroZone">
+      <div class="zone-icon">&#128247;</div>
+      <p>Нажмите чтобы выбрать фото</p>
+      <input type="file" id="heroInput" accept="image/*" multiple hidden />
+    </div>
+    <div class="previews" id="heroPreviews"></div>
+  </div>
+
+  <!-- CARD 1 -->
+  <div class="glass">
+    <div class="section-title">Услуги — Карточка 1</div>
+
+    <label for="card1Title">Заголовок</label>
+    <input type="text" id="card1Title" placeholder="Корпоративный мерч" />
+
+    <label for="card1Desc">Описание</label>
+    <textarea id="card1Desc" placeholder="Одежда с фирменной символикой..."></textarea>
+
+    <label>Фото (можно несколько)</label>
+    <div class="upload-zone" id="card1Zone">
+      <div class="zone-icon">&#128444;</div>
+      <p>Выберите фото</p>
+      <input type="file" id="card1Input" accept="image/*" multiple hidden />
+    </div>
+    <div class="previews" id="card1Previews"></div>
+  </div>
+
+  <!-- BUTTONS -->
+  <div class="buttons">
+    <button class="btn-save" onclick="saveAll()">Сохранить изменения</button>
+    <a class="btn-open" href="test-site.html" target="_blank">Открыть сайт</a>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const KEY = 'easyProductionData';
+  const store = { hero: [], card1: [] };
+
+  // ── Wire upload zones ───────────────────────────────────────────────────
+  function setupZone(zoneId, inputId, storeKey) {
+    var zone  = document.getElementById(zoneId);
+    var input = document.getElementById(inputId);
+    zone.addEventListener('click', function() { input.click(); });
+    input.addEventListener('change', function() {
+      var files = Array.from(this.files);
+      this.value = ''; // reset — allows re-selecting same files
+      if (files.length) addFiles(files, storeKey);
+    });
+  }
+
+  setupZone('heroZone',  'heroInput',  'hero');
+  setupZone('card1Zone', 'card1Input', 'card1');
+
+  // ── Load saved data on open ─────────────────────────────────────────────
+  (function load() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(KEY) || '{}');
+
+      if (saved.hero) {
+        if (saved.hero.title)    document.getElementById('heroTitle').value    = saved.hero.title;
+        if (saved.hero.subtitle) document.getElementById('heroSubtitle').value = saved.hero.subtitle;
+        if (Array.isArray(saved.hero.photos)) {
+          store.hero = saved.hero.photos.slice();
+          renderPreviews('hero');
+        }
+      }
+
+      var c1 = saved.services && saved.services.card1;
+      if (c1) {
+        if (c1.title) document.getElementById('card1Title').value = c1.title;
+        if (c1.desc)  document.getElementById('card1Desc').value  = c1.desc;
+        if (Array.isArray(c1.photos)) {
+          store.card1 = c1.photos.slice();
+          renderPreviews('card1');
+        }
+      }
+    } catch (_) {}
+  })();
+
+  // ── Add files ───────────────────────────────────────────────────────────
+  function addFiles(files, key) {
+    showToast('Обрабатываю ' + files.length + ' фото...');
+    var pending = files.length;
+    var added   = 0;
+
+    files.forEach(function(file) {
+      if (file.size > 6 * 1024 * 1024) {
+        showToast(file.name + ': слишком большой (макс 6 МБ)', 'error');
+        pending--;
+        if (!pending) renderPreviews(key);
+        return;
+      }
+      resizeFile(file, function(dataUrl) {
+        if (dataUrl) { store[key].push(dataUrl); added++; }
+        pending--;
+        if (!pending) {
+          renderPreviews(key);
+          showToast('Добавлено: ' + added + ' фото');
+        }
+      });
+    });
+  }
+
+  function resizeFile(file, cb, maxW, maxH, q) {
+    maxW = maxW || 800; maxH = maxH || 600; q = q || 0.68;
+    var reader = new FileReader();
+    reader.onerror = function() { cb(null); };
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onerror = function() { cb(null); };
+      img.onload = function() {
+        var w = img.width, h = img.height;
+        var ratio = Math.min(maxW / w, maxH / h, 1);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        cb(canvas.toDataURL('image/jpeg', q));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function renderPreviews(key) {
+    document.getElementById(key + 'Previews').innerHTML =
+      store[key].map(function(src, i) {
+        return '<div class="preview-item">' +
+          '<img src="' + src + '" alt="Фото ' + (i + 1) + '">' +
+          '<button class="rm" onclick="removePhoto(\'' + key + '\',' + i + ')">&#10005;</button>' +
+          '</div>';
+      }).join('');
+  }
+
+  function removePhoto(key, idx) {
+    store[key].splice(idx, 1);
+    renderPreviews(key);
+  }
+
+  // ── Save ────────────────────────────────────────────────────────────────
+  function saveAll() {
+    var data = {
+      _savedAt: new Date().toISOString(),
+      hero: {
+        title:    document.getElementById('heroTitle').value.trim(),
+        subtitle: document.getElementById('heroSubtitle').value.trim(),
+        photos:   store.hero
+      },
+      services: {
+        card1: {
+          title:  document.getElementById('card1Title').value.trim(),
+          desc:   document.getElementById('card1Desc').value.trim(),
+          photos: store.card1
+        }
+      }
+    };
+
+    var json = JSON.stringify(data);
+    var sizeKb = Math.round(json.length / 1024);
+    try {
+      localStorage.setItem(KEY, json);
+      showToast('Сохранено (' + sizeKb + ' KB). Обновите test-site.html (F5)');
+    } catch (e) {
+      // Quota exceeded — сохраняем только текст
+      var slim = JSON.parse(json);
+      slim.hero.photos = [];
+      slim.services.card1.photos = [];
+      try {
+        localStorage.setItem(KEY, JSON.stringify(slim));
+        showToast('Текст сохранён, фото удалены — лимит 5 MB. Используй 1–2 фото.', 'error');
+      } catch (_) {
+        showToast('localStorage полон. Открой DevTools → Application → Clear site data.', 'error');
+      }
+    }
+  }
+
+  // ── Toast ───────────────────────────────────────────────────────────────
+  var _toastTimer;
+  function showToast(msg, type) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (type === 'error' ? ' error' : '');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(function() { el.className = 'toast'; }, 3500);
+  }
+</script>
+</body>
+</html>

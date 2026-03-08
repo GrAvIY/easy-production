@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Easy Production — кастомное производство одежды и мерча. Корпоративный мерч, fashion-марки, промо-продукция. От 1 единицы." />
+  <meta name="theme-color" content="#F8F9FC" />
+  <title>Easy Production — Custom Merch Studio</title>
+
+  <!-- Preconnect fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&family=Montserrat:wght@400;700;900&family=Playfair+Display:ital,wght@0,700;1,700&family=Dancing+Script:wght@700&family=Oswald:wght@400;700&family=Bebas+Neue&family=Pacifico&family=Russo+One&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/liquid-glass.css" />
+
+  <style>
+    /* ── ORDER MODAL ──────────────────────────────────────────────────────── */
+    .order-modal { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .order-modal[hidden] { display: none; }
+    .order-modal__overlay { position: absolute; inset: 0; background: rgba(0,0,0,.55); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+    .order-modal__dialog {
+      position: relative; z-index: 1; background: #fff; border-radius: 20px;
+      width: 100%; max-width: 580px; max-height: 92vh; overflow-y: auto;
+      padding: 36px 32px 28px; box-shadow: 0 24px 80px rgba(0,0,0,.22);
+      animation: modalIn .22s ease;
+    }
+    @keyframes modalIn { from { opacity:0; transform: scale(.95) translateY(12px); } to { opacity:1; transform: none; } }
+    .order-modal__close {
+      position: absolute; top: 16px; right: 16px; background: none; border: none;
+      font-size: 18px; cursor: pointer; color: #6b7280; width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center; border-radius: 50%;
+      transition: background .15s;
+    }
+    .order-modal__close:hover { background: #f3f4f6; }
+    .order-modal__title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .order-modal__sub { color: #6b7280; font-size: 14px; margin-bottom: 20px; }
+
+    /* Snapshot strip */
+    .order-modal__snapshot {
+      display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+      background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    .order-modal__snap-img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+    .order-modal__snap-info { flex: 1; }
+    .order-modal__snap-info strong { display: block; font-size: 13px; font-weight: 600; color: #15803d; }
+    .order-modal__snap-info span { font-size: 12px; color: #6b7280; }
+    .order-modal__snap-remove { background: none; border: none; cursor: pointer; color: #9ca3af; font-size: 16px; padding: 4px; }
+    .order-modal__snap-remove:hover { color: #dc2626; }
+
+    /* Form */
+    .order-modal__form { display: flex; flex-direction: column; gap: 12px; }
+    .order-modal__row { display: flex; gap: 12px; }
+    .order-modal__row--2 > * { flex: 1; min-width: 0; }
+    .order-modal__field { display: flex; flex-direction: column; gap: 5px; }
+    .order-modal__field label { font-size: 13px; font-weight: 500; color: #374151; }
+    .order-modal__field .req { color: #dc2626; }
+    .order-modal__field input,
+    .order-modal__field select,
+    .order-modal__field textarea {
+      padding: 10px 13px; border: 1.5px solid #e5e7eb; border-radius: 10px;
+      font-size: 14px; font-family: inherit; transition: border-color .15s;
+      background: #fff; color: #111; resize: vertical;
+    }
+    .order-modal__field input:focus,
+    .order-modal__field select:focus,
+    .order-modal__field textarea:focus { outline: none; border-color: #dc2626; }
+    .order-modal__field input.err,
+    .order-modal__field select.err { border-color: #dc2626; background: #fff5f5; }
+
+    .order-modal__attach-btn {
+      display: flex; align-items: center; gap: 8px; padding: 9px 16px;
+      border: 1.5px dashed #d1d5db; border-radius: 10px; background: #f9fafb;
+      font-size: 13px; color: #6b7280; cursor: pointer; transition: all .15s;
+    }
+    .order-modal__attach-btn:hover { border-color: #dc2626; color: #dc2626; background: #fff5f5; }
+    .order-modal__attach-btn.attached { border-style: solid; border-color: #86efac; color: #15803d; background: #f0fdf4; }
+
+    .order-modal__submit { margin-top: 4px; }
+    .order-modal__note { font-size: 11px; color: #9ca3af; text-align: center; margin-top: 6px; }
+
+    /* Success */
+    .order-modal__success { text-align: center; padding: 16px 0 8px; }
+    .order-modal__success-icon {
+      width: 56px; height: 56px; border-radius: 50%; background: #dcfce7;
+      color: #16a34a; font-size: 24px; display: flex; align-items: center;
+      justify-content: center; margin: 0 auto 16px;
+    }
+    .order-modal__success h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .order-modal__success p { color: #6b7280; margin-bottom: 24px; }
+
+    @media (max-width: 480px) {
+      .order-modal__dialog { padding: 24px 20px 20px; }
+      .order-modal__row--2 { flex-direction: column; }
+    }
+
+    /* ── Secret admin dot ────────────────────────────────────────────────── */
+    #adminSecretDot {
+      display: inline-block; width: 6px; height: 6px;
+      border-radius: 50%; background: currentColor;
+      opacity: 0; margin-left: 8px; vertical-align: middle;
+      cursor: default; transition: opacity .3s;
+      position: relative; top: -1px;
+    }
+    .footer__copy:hover #adminSecretDot { opacity: 0.18; }
+
+    /* ── Print center presets ────────────────────────────────────────────── */
+    .print-center-row { display: flex; gap: 6px; }
+    .print-center-row .btn { flex: 1; font-size: 11px; justify-content: center; }
+
+    /* ── Text tool controls ──────────────────────────────────────────────── */
+    .text-tool-input {
+      width: 100%; padding: 8px 10px; border: 1.5px solid var(--c-border, #e5e7eb);
+      border-radius: 8px; font-size: 13px; font-family: inherit;
+      background: rgba(255,255,255,0.7); color: inherit;
+      transition: border-color .15s;
+    }
+    .text-tool-input:focus { outline: none; border-color: var(--c-accent, #DC2626); }
+    .text-tool-select {
+      width: 100%; padding: 7px 10px; border: 1.5px solid var(--c-border, #e5e7eb);
+      border-radius: 8px; font-size: 13px; background: rgba(255,255,255,0.7);
+      color: inherit; cursor: pointer;
+    }
+    .text-style-btns { display: flex; gap: 6px; }
+    .text-style-btn { min-width: 36px; padding: 5px 10px; font-size: 14px; }
+    .text-style-btn[data-active="true"] { background: var(--c-accent, #DC2626); color: white; border-color: var(--c-accent, #DC2626); }
+    .text-tool-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .text-tool-actions .btn { flex: 1; min-width: 0; font-size: 12px; text-align: center; justify-content: center; }
+    #textPlaceBtn[data-active="true"] { background: var(--c-accent, #DC2626); color: white; border-color: var(--c-accent, #DC2626); }
+  </style>
+</head>
+
+<body class="loading">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       PRELOADER
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <div class="preloader" id="preloader" aria-hidden="true">
+    <div class="preloader__inner">
+      <span class="preloader__logo">EP</span>
+      <div class="preloader__bar">
+        <div class="preloader__progress" id="preloaderProgress"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       NAVIGATION
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <header class="header" id="header">
+    <nav class="nav container">
+      <a href="#hero" class="nav__logo" aria-label="Easy Production — на главную">
+        <span class="nav__logo-text">Easy<br>Production</span>
+      </a>
+
+      <ul class="nav__links" role="list">
+        <li><a href="#services"    class="nav__link">Услуги</a></li>
+        <li><a href="#customizer"  class="nav__link">Конструктор</a></li>
+        <li><a href="#calculator"  class="nav__link">Калькулятор</a></li>
+        <li><a href="#portfolio"   class="nav__link">Портфолио</a></li>
+        <li><a href="#contact"     class="nav__link">Контакт</a></li>
+      </ul>
+
+      <a href="#contact" class="btn btn--sm btn--accent nav__cta">Получить расчёт</a>
+
+      <button class="nav__burger" id="navBurger" aria-label="Меню" aria-expanded="false">
+        <span></span><span></span>
+      </button>
+    </nav>
+
+    <!-- Mobile menu -->
+    <div class="nav__mobile" id="navMobile" aria-hidden="true">
+      <ul role="list">
+        <li><a href="#services"   class="nav__mobile-link">Услуги</a></li>
+        <li><a href="#customizer" class="nav__mobile-link">Конструктор</a></li>
+        <li><a href="#calculator" class="nav__mobile-link">Калькулятор</a></li>
+        <li><a href="#portfolio"  class="nav__mobile-link">Портфолио</a></li>
+        <li><a href="#contact"    class="nav__mobile-link">Контакт</a></li>
+      </ul>
+      <a href="#contact" class="btn btn--accent nav__mobile-cta">Получить расчёт</a>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         HERO
+    ════════════════════════════════════════════════════════════════════════ -->
+    <section class="hero" id="hero">
+      <div class="hero__bg" aria-hidden="true">
+        <canvas class="hero__canvas" id="heroCanvas"></canvas>
+      </div>
+
+      <div class="container hero__inner">
+        <div class="hero__content">
+          <p class="hero__eyebrow reveal-up">Custom Production Studio · Москва</p>
+
+          <h1 class="hero__title">
+            <span class="reveal-line">Одежда,</span>
+            <span class="reveal-line hero__title--italic">которую</span>
+            <span class="reveal-line">запоминают.</span>
+          </h1>
+
+          <p class="hero__desc reveal-up">
+            Корпоративный мерч, fashion-марки и промо-продукция.<br>
+            Производство от&nbsp;1&nbsp;единицы. Срок — от&nbsp;3&nbsp;дней.
+          </p>
+
+          <div class="hero__cta reveal-up">
+            <a href="#customizer" class="btn btn--accent btn--lg">
+              Создать дизайн
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+            <a href="#services" class="btn btn--ghost btn--lg">Узнать больше</a>
+          </div>
+        </div>
+
+        <div class="hero__stats" aria-label="Ключевые показатели">
+          <div class="hero__stat reveal-up">
+            <span class="hero__stat-number" data-count="500">0</span>
+            <span class="hero__stat-suffix">+</span>
+            <span class="hero__stat-label">проектов</span>
+          </div>
+          <div class="hero__stat reveal-up">
+            <span class="hero__stat-number" data-count="10">0</span>
+            <span class="hero__stat-suffix">+</span>
+            <span class="hero__stat-label">способов нанесения</span>
+          </div>
+          <div class="hero__stat reveal-up">
+            <span class="hero__stat-number" data-count="3">0</span>
+            <span class="hero__stat-suffix"> дня</span>
+            <span class="hero__stat-label">минимальный срок</span>
+          </div>
+        </div>
+      </div>
+
+      <a href="#services" class="hero__scroll" aria-label="Прокрутить вниз">
+        <span class="hero__scroll-text">Scroll</span>
+        <div class="hero__scroll-line" aria-hidden="true"></div>
+      </a>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         MARQUEE
+    ════════════════════════════════════════════════════════════════════════ -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__track">
+        <span>Футболки</span><span class="marquee__dot">·</span>
+        <span>Худи</span><span class="marquee__dot">·</span>
+        <span>Лонгсливы</span><span class="marquee__dot">·</span>
+        <span>Шапки</span><span class="marquee__dot">·</span>
+        <span>Шорты</span><span class="marquee__dot">·</span>
+        <span>Штаны</span><span class="marquee__dot">·</span>
+        <span>DTF-печать</span><span class="marquee__dot">·</span>
+        <span>Шелкография</span><span class="marquee__dot">·</span>
+        <span>Вышивка</span><span class="marquee__dot">·</span>
+        <span>Сублимация</span><span class="marquee__dot">·</span>
+        <span>Корпоративный мерч</span><span class="marquee__dot">·</span>
+        <span>Fashion-марки</span><span class="marquee__dot">·</span>
+        <!-- дублируем для бесшовности -->
+        <span>Футболки</span><span class="marquee__dot">·</span>
+        <span>Худи</span><span class="marquee__dot">·</span>
+        <span>Лонгсливы</span><span class="marquee__dot">·</span>
+        <span>Шапки</span><span class="marquee__dot">·</span>
+        <span>Шорты</span><span class="marquee__dot">·</span>
+        <span>Штаны</span><span class="marquee__dot">·</span>
+        <span>DTF-печать</span><span class="marquee__dot">·</span>
+        <span>Шелкография</span><span class="marquee__dot">·</span>
+        <span>Вышивка</span><span class="marquee__dot">·</span>
+        <span>Сублимация</span><span class="marquee__dot">·</span>
+        <span>Корпоративный мерч</span><span class="marquee__dot">·</span>
+        <span>Fashion-марки</span><span class="marquee__dot">·</span>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         ABOUT
+    ════════════════════════════════════════════════════════════════════════ -->
+    <section class="about section" id="about">
+      <div class="container">
+        <div class="about__grid">
+          <div class="about__left">
+            <p class="section-label reveal-up">О студии</p>
+            <h2 class="section-title reveal-up">
+              Производство,<br>
+              <em>которому доверяют</em><br>
+              бренды
+            </h2>
+          </div>
+
+          <div class="about__right">
+            <p class="about__text reveal-up">
+              Easy Production — производственная студия полного цикла.
+              Мы создаём одежду и мерч для корпораций, стартапов, музыкантов
+              и fashion-марок. От идеи до готовой партии — без лишних звеньев.
+            </p>
+            <p class="about__text reveal-up">
+              Работаем с тиражами от&nbsp;1&nbsp;до&nbsp;10&nbsp;000+ единиц.
+              10+ технологий нанесения под одной крышей. Собственное производство
+              в&nbsp;Москве — полный контроль качества на каждом этапе.
+            </p>
+
+            <div class="about__pillars reveal-up">
+              <div class="about__pillar">
+                <span class="about__pillar-num">01</span>
+                <span class="about__pillar-text">Производство в России</span>
+              </div>
+              <div class="about__pillar">
+                <span class="about__pillar-num">02</span>
+                <span class="about__pillar-text">Контроль качества</span>
+              </div>
+              <div class="about__pillar">
+                <span class="about__pillar-num">03</span>
+                <span class="about__pillar-text">Прозрачные сроки</span>
+              </div>
+              <div class="about__pillar">
+                <span class="about__pillar-num">04</span>
+                <span class="about__pillar-text">Персональный менеджер</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SERVICES
+    ════════════════════════════════════════════════════════════════════════ -->
+    <section class="services section" id="services">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label reveal-up">Услуги</p>
+          <h2 class="section-title reveal-up">Что мы делаем</h2>
+        </div>
+
+        <div class="services__grid">
+
+          <article class="service-card reveal-up" data-index="01">
+            <div class="service-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 14l8-6h16l8 6-6 4v22H14V18L8 14z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M8 14l-4 8h10M40 14l4 8H34" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="service-card__title">Корпоративный мерч</h3>
+            <p class="service-card__desc">
+              Одежда с фирменной символикой для команд, мероприятий и партнёров.
+              Единый стиль — сильный бренд.
+            </p>
+            <ul class="service-card__list">
+              <li>Брендбук → производство</li>
+              <li>Любой тираж, сжатые сроки</li>
+              <li>Упаковка и логистика</li>
+            </ul>
+          </article>
+
+          <article class="service-card reveal-up" data-index="02">
+            <div class="service-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="24" cy="24" r="16" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M16 24c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M24 8v4M24 36v4M8 24h4M36 24h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3 class="service-card__title">Fashion-производство</h3>
+            <p class="service-card__desc">
+              Полный цикл для независимых марок: пошив, нанесение, брендинг.
+              От малого тиража до масштабирования.
+            </p>
+            <ul class="service-card__list">
+              <li>Разработка лекал</li>
+              <li>Подбор материалов</li>
+              <li>Брендированные этикетки</li>
+            </ul>
+          </article>
+
+          <article class="service-card reveal-up" data-index="03">
+            <div class="service-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="8" y="8" width="32" height="32" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M16 24h16M24 16v16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3 class="service-card__title">Промо-продукция</h3>
+            <p class="service-card__desc">
+              Мерч для конференций, концертов, фестивалей и акций.
+              Запоминающийся и функциональный.
+            </p>
+            <ul class="service-card__list">
+              <li>Разработка концепции</li>
+              <li>Срочное производство</li>
+              <li>Доставка по России</li>
+            </ul>
+          </article>
+
+          <article class="service-card reveal-up" data-index="04">
+            <div class="service-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M24 8L8 20v20h32V20L24 8z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                <rect x="18" y="28" width="12" height="12" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <h3 class="service-card__title">Print-on-Demand</h3>
+            <p class="service-card__desc">
+              Печать от 1 штуки без предоплаты склада.
+              Идеально для тестирования и интернет-магазинов.
+            </p>
+            <ul class="service-card__list">
+              <li>Без минималки</li>
+              <li>API-интеграция с магазином</li>
+              <li>Фулфилмент под ключ</li>
+            </ul>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         APPLICATION METHODS
+    ════════════════════════════════════════════════════════════════════════ -->
+    <section class="methods section" id="methods">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label reveal-up">Технологии</p>
+          <h2 class="section-title reveal-up">
+            10+ способов<br><em>нанесения</em>
+          </h2>
+        </div>
+
+        <div class="methods__list" id="methodsList">
+          <!-- Генерируется из config.js через app.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         PROCESS
+    ════════════════════════════════════════════════════════════════════════ -->
+    <section class="process section" id="process">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label reveal-up">Как работаем</p>
+          <h2 class="section-title reveal-up">Путь от идеи<br><em>до вашего мерча</em></h2>
+        </div>
+
+        <ol class="process__steps" role="list">
+          <li class="process__step reveal-up">
+            <span class="process__num">01</span>
+            <div class="process__body">
+              <h3>Заявка</h3>
+              <p>Напишите нам — опишите задачу или просто пришлите референсы. Отвечаем в течение 2 часов.</p>
+            </div>
+          </li>
+          <li class="process__step reveal-up">
+            <span class="process__num">02</span>
+            <div class="process__body">
+              <h3>Брифинг и расчёт</h3>
+              <p>Уточняем детали: тип изделия, нанесение, количество, сроки. Выдаём точную смету.</p>
+            </div>
+          </li>
+          <li class="process__step reveal-up">
+            <span class="process__num">03</span>
+            <div class="process__body">
+              <h3>Препресс и макет</h3>
+              <p>Готовим макеты, при необходимости — физический образец для согласования.</p>
+            </div>
+          </li>
+          <li class="process__step reveal-up">
+            <span class="process__num">04</span>
+            <div class="process__body">
+              <h3>Производство</h3>
+              <p>Запускаем тираж на собственном оборудовании. Контроль качества на каждом этапе.</p>
+            </div>
+          </li>
+          <li class="process__step reveal-up">
+            <span class="process__num">05</span>
+            <div class="process__body">
+              <h3>Доставка</h3>
+              <p>Упаковка, маркировка и доставка по Москве и России. Или самовывоз из студии.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         3D CUSTOMIZER
+    ════════════════════════════════════════════════════════════════════════ -->
+    <section class="customizer section" id="customizer">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label reveal-up">Конструктор</p>
+          <h2 class="section-title reveal-up">
+            Создай свой<br><em>дизайн прямо сейчас</em>
+          </h2>
+          <p class="section-desc reveal-up">
+            Выбери модель, загрузи принт и посмотри как выглядит результат.
+            3D-предпросмотр — бесплатно.
+          </p>
+        </div>
+      </div>
+
+      <div class="customizer__shell">
+        <!-- ── Controls Left ──────────────────────────────────────────── -->
+        <aside class="customizer__controls" id="customizerControls">
+
+          <div class="ctrl-group">
+            <p class="ctrl-label">Тип изделия</p>
+            <div class="clothing-tabs" id="clothingTabs" role="tablist">
+              <!-- Генерируется из config.js -->
+            </div>
+          </div>
+
+          <div class="ctrl-group">
+            <p class="ctrl-label">Цвет изделия</p>
+            <div class="color-swatches" id="colorSwatches" role="group" aria-label="Выбор цвета">
+              <!-- Генерируется из config.js -->
+            </div>
+            <p class="color-name-display" id="colorNameDisplay">Белый</p>
+          </div>
+
+          <div class="ctrl-group">
+            <p class="ctrl-label">Принт</p>
+            <button class="btn btn--outline btn--sm upload-btn" id="uploadBtn">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M8 2v9M4 5l4-3 4 3M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Загрузить PNG / JPG
+            </button>
+            <input type="file" id="printFileInput" accept="image/png,image/jpeg,image/svg+xml" hidden aria-label="Выбор файла принта" />
+          </div>
+
+          <div class="ctrl-group print-transform" id="printTransform" hidden>
+            <p class="ctrl-label">Позиция принта</p>
+
+            <!-- Quick-center presets -->
+            <div class="print-center-row">
+              <button class="btn btn--outline btn--sm" id="printCenterFrontBtn">⬤ Центр спереди</button>
+              <button class="btn btn--outline btn--sm" id="printCenterBackBtn">⬤ Центр сзади</button>
+            </div>
+
+            <div class="slider-row">
+              <label class="slider-label" for="sliderScale">Масштаб</label>
+              <input type="range" id="sliderScale" class="ep-slider" min="5" max="95" value="40" />
+              <span class="slider-val" id="valScale">40%</span>
+            </div>
+
+            <div class="slider-row">
+              <label class="slider-label" for="sliderRotate">Поворот</label>
+              <input type="range" id="sliderRotate" class="ep-slider" min="0" max="360" value="0" />
+              <span class="slider-val" id="valRotate">0°</span>
+            </div>
+
+            <div class="slider-row">
+              <label class="slider-label" for="sliderX">Смещение X</label>
+              <input type="range" id="sliderX" class="ep-slider" min="-45" max="45" value="0" />
+              <span class="slider-val" id="valX">0</span>
+            </div>
+
+            <div class="slider-row">
+              <label class="slider-label" for="sliderY">Смещение Y</label>
+              <input type="range" id="sliderY" class="ep-slider" min="-45" max="45" value="0" />
+              <span class="slider-val" id="valY">0</span>
+            </div>
+
+            <button class="btn btn--ghost btn--sm" id="removePrintBtn">Удалить принт</button>
+          </div>
+
+          <div class="ctrl-group">
+            <p class="ctrl-label">Инструменты</p>
+            <button class="btn btn--outline btn--sm tool-btn" id="drawModeBtn" data-active="false">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M2 14l3-1 8-8-2-2-8 8-1 3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M11 3l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              Режим рисования
+            </button>
+            <button class="btn btn--ghost btn--sm" id="clearCanvasBtn">Очистить</button>
+          </div>
+
+          <div class="ctrl-group" id="drawControls" hidden>
+            <p class="ctrl-label">Кисть</p>
+            <div class="brush-controls">
+              <div class="slider-row">
+                <label class="slider-label" for="brushSize">Размер</label>
+                <input type="range" id="brushSize" class="ep-slider" min="2" max="40" value="8" />
+                <span class="slider-val" id="valBrush">8</span>
+              </div>
+              <div class="brush-colors">
+                <button class="brush-color brush-color--black active" data-color="#1A1A1A" aria-label="Чёрный"></button>
+                <button class="brush-color brush-color--white" data-color="#FFFFFF" aria-label="Белый"></button>
+                <button class="brush-color brush-color--gold" data-color="#C8A97E" aria-label="Золото"></button>
+                <button class="brush-color brush-color--red" data-color="#8B2635" aria-label="Красный"></button>
+                <button class="brush-color brush-color--blue" data-color="#2B4C7E" aria-label="Синий"></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Text tool ──────────────────────────────────────────── -->
+          <div class="ctrl-group">
+            <p class="ctrl-label">Текст на изделии</p>
+            <input type="text" id="textInput" class="text-tool-input" placeholder="Введите текст..." maxlength="60" />
+            <label class="ctrl-label" for="textFontSelect">Шрифт</label>
+            <select id="textFontSelect" class="text-tool-select" aria-label="Шрифт текста">
+              <option value="Arial">Arial</option>
+              <option value="Georgia">Georgia (Serif)</option>
+              <option value="Impact">Impact</option>
+              <option value="'Courier New'">Courier New</option>
+              <option value="Montserrat">Montserrat</option>
+              <option value="Oswald">Oswald</option>
+              <option value="'Bebas Neue'">Bebas Neue</option>
+              <option value="'Playfair Display'">Playfair Display</option>
+              <option value="'Dancing Script'">Dancing Script</option>
+              <option value="Pacifico">Pacifico</option>
+              <option value="'Russo One'">Russo One</option>
+            </select>
+            <div class="slider-row">
+              <label class="slider-label" for="textSizeSlider">Размер</label>
+              <input type="range" id="textSizeSlider" class="ep-slider" min="16" max="200" value="64" />
+              <span class="slider-val" id="valTextSize">64</span>
+            </div>
+            <div class="slider-row">
+              <label class="slider-label" for="textRotateSlider">Поворот</label>
+              <input type="range" id="textRotateSlider" class="ep-slider" min="0" max="360" value="0" />
+              <span class="slider-val" id="valTextRotate">0°</span>
+            </div>
+            <div class="text-style-btns">
+              <button class="btn btn--outline btn--sm text-style-btn" id="textBoldBtn" data-active="false" title="Жирный"><b>B</b></button>
+              <button class="btn btn--outline btn--sm text-style-btn" id="textItalicBtn" data-active="false" title="Курсив"><i>I</i></button>
+            </div>
+            <div class="brush-colors" id="textColorSwatches">
+              <button class="brush-color brush-color--black active" data-color="#1A1A1A" aria-label="Чёрный"></button>
+              <button class="brush-color brush-color--white" data-color="#FFFFFF" aria-label="Белый"></button>
+              <button class="brush-color brush-color--gold"  data-color="#C8A97E" aria-label="Золото"></button>
+              <button class="brush-color brush-color--red"   data-color="#8B2635" aria-label="Красный"></button>
+              <button class="brush-color brush-color--blue"  data-color="#2B4C7E" aria-label="Синий"></button>
+              <button class="brush-color brush-color--green" data-color="#1D7A3A" aria-label="Зелёный"></button>
+            </div>
+            <div class="text-tool-actions">
+              <button class="btn btn--outline btn--sm" id="textCenterBtn">В центр</button>
+              <button class="btn btn--outline btn--sm" id="textPlaceBtn" data-active="false">📍 Нажать на модель</button>
+            </div>
+          </div>
+
+          <!-- ── Order CTA ──────────────────────────────────────────── -->
+          <div class="ctrl-group ctrl-group--order">
+            <button type="button" class="btn btn--accent btn--full" id="customizerOrderBtn">
+              Оформить заявку
+            </button>
+          </div>
+
+        </aside>
+
+        <!-- ── 3D Viewport ────────────────────────────────────────────── -->
+        <div class="customizer__viewport" id="customizerViewport">
+          <canvas id="threeCanvas"></canvas>
+
+          <div class="viewport-overlay" id="viewportOverlay" aria-hidden="true">
+            <svg class="viewport-icon" viewBox="0 0 48 48" fill="none">
+              <circle cx="24" cy="24" r="20" stroke="currentColor" stroke-width="1.5" opacity=".3"/>
+              <path d="M16 24c0-4.4 3.6-8 8-8M32 24a8 8 0 01-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".6"/>
+              <path d="M20 14l4-4 4 4M28 34l-4 4-4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/>
+            </svg>
+            <p>Перетащи для вращения</p>
+            <p class="viewport-hint-sub">Колесо мыши — масштаб</p>
+          </div>
+        </div>
+
+        <!-- ── Info Right ─────────────────────────────────────────────── -->
+        <div class="customizer__info">
+          <div class="customizer__cta-block">
+            <h3 class="customizer__cta-title">Нравится результат?</h3>
+            <p class="customizer__cta-desc">Нажмите «Оформить заявку» — менеджер свяжется и просчитает точную стоимость тиража.</p>
+            <a href="#calculator" class="btn btn--ghost">Рассчитать стоимость</a>
+          </div>
+
+          <div class="customizer__tips">
+            <p class="ctrl-label">Подсказки</p>
+            <ul>
+              <li>Загружайте PNG с прозрачным фоном для лучшего результата</li>
+              <li>Минимальное разрешение принта — 300 DPI</li>
+              <li>Максимальный размер файла — 20 МБ</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         CALCULATOR
+    ════════════════════════════════════════════════════════════════════════ -->
+    <section class="calculator section" id="calculator">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label reveal-up">Стоимость</p>
+          <h2 class="section-title reveal-up">
+            Калькулятор<br><em>заказа</em>
+          </h2>
+          <p class="section-desc reveal-up">
+            Примерная стоимость. Точный расчёт — после уточнения деталей с менеджером.
+          </p>
+        </div>
+
+        <div class="calc__layout reveal-up">
+          <!-- Form -->
+          <div class="calc__form" id="calcForm">
+
+            <div class="calc__row">
+              <label class="calc__label" for="calcProduct">Изделие</label>
+              <div class="calc__select-wrap">
+                <select class="calc__select" id="calcProduct">
+                  <!-- Генерируется из config.js -->
+                </select>
+              </div>
+            </div>
+
+            <div class="calc__row">
+              <label class="calc__label" for="calcMethod">Способ нанесения</label>
+              <div class="calc__select-wrap">
+                <select class="calc__select" id="calcMethod">
+                  <!-- Генерируется из config.js -->
+                </select>
+              </div>
+            </div>
+
+            <div class="calc__row">
+              <label class="calc__label" for="calcSize">Размер принта</label>
+              <div class="calc__select-wrap">
+                <select class="calc__select" id="calcSize">
+                  <!-- Генерируется из config.js -->
+                </select>
+              </div>
+            </div>
+
+            <div class="calc__row">
+              <label class="calc__label" for="calcColors">Количество цветов</label>
+              <div class="calc__select-wrap">
+                <select class="calc__select" id="calcColors">
+                  <!-- Генерируется из config.js -->
+                </select>
+              </div>
+            </div>
+
+            <div class="calc__row">
+              <label class="calc__label" for="calcQty">
+                Количество единиц
+                <span class="calc__qty-display" id="calcQtyDisplay">50</span>
+              </label>
+              <input type="range" id="calcQty" class="ep-slider ep-slider--wide" min="1" max="1000" value="50" step="1" />
+              <div class="qty-tiers" id="qtyTiers">
+                <!-- Генерируется из config.js -->
+              </div>
+            </div>
+
+            <div class="calc__addons">
+              <p class="calc__label">Дополнительно</p>
+              <div class="calc__addons-grid" id="calcAddons">
+                <!-- Генерируется из config.js -->
+              </div>
+            </div>
+
+            <p class="calc__disclaimer">
+              * Калькулятор даёт приблизительную стоимость. Финальная цена зависит от точных параметров заказа.
+            </p>
+          </div>
+
+          <!-- Result -->
+          <div class="calc__result" id="calcResult">
+            <div class="calc__result-inner">
+              <p class="calc__result-label">Примерная стоимость</p>
+              <div class="calc__price-block">
+                <span class="calc__price-total" id="calcTotal">—</span>
+                <span class="calc__currency">₽</span>
+              </div>
+              <div class="calc__breakdown" id="calcBreakdown">
+                <div class="calc__breakdown-row">
+                  <span>Цена за единицу</span>
+                  <span id="calcPerUnit">—</span>
+                </div>
+                <div class="calc__breakdown-row">
+                  <span>Скидка за тираж</span>
+                  <span id="calcDiscount">—</span>
+                </div>
+                <div class="calc__breakdown-row calc__breakdown-row--accent">
+                  <span>Экономия</span>
+                  <span id="calcSaving">—</span>
+                </div>
+              </div>
+
+              <div class="calc__cta-area">
+                <button type="button" class="btn btn--accent" id="calcOrderBtn">Оформить заявку</button>
+                <p class="calc__note">Ответим в течение 2 часов</p>
+              </div>
+
+              <!-- Sync indicator: при изменении опций в конструкторе  -->
+              <div class="calc__sync" id="calcSync" hidden>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M7 1a6 6 0 110 12A6 6 0 017 1z" stroke="currentColor" stroke-width="1.2" opacity=".4"/>
+                  <path d="M7 1a6 6 0 016 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+                Обновлено с конструктора
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         PORTFOLIO
+    ════════════════════════════════════════════════════════════════════════ -->
+    <section class="portfolio section" id="portfolio">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label reveal-up">Портфолио</p>
+          <h2 class="section-title reveal-up">Наши работы</h2>
+        </div>
+      </div>
+
+      <div class="portfolio__grid">
+        <!-- Placeholder cards — в продакшне заменяются реальными фото -->
+        <div class="portfolio__item reveal-up" data-cat="merch">
+          <div class="portfolio__img portfolio__img--1">
+            <div class="portfolio__placeholder">
+              <span>Корпоративный мерч</span>
+              <span class="portfolio__placeholder-sub">DTF-печать · 200 шт</span>
+            </div>
+          </div>
+          <div class="portfolio__meta">
+            <span class="portfolio__tag">Мерч</span>
+            <span class="portfolio__name">Tech-стартап, 2024</span>
+          </div>
+        </div>
+
+        <div class="portfolio__item reveal-up" data-cat="fashion">
+          <div class="portfolio__img portfolio__img--2">
+            <div class="portfolio__placeholder">
+              <span>Fashion-коллекция</span>
+              <span class="portfolio__placeholder-sub">Шелкография · 80 шт</span>
+            </div>
+          </div>
+          <div class="portfolio__meta">
+            <span class="portfolio__tag">Fashion</span>
+            <span class="portfolio__name">Streetwear-марка</span>
+          </div>
+        </div>
+
+        <div class="portfolio__item reveal-up" data-cat="promo">
+          <div class="portfolio__img portfolio__img--3">
+            <div class="portfolio__placeholder">
+              <span>Промо-мерч</span>
+              <span class="portfolio__placeholder-sub">Вышивка · 500 шт</span>
+            </div>
+          </div>
+          <div class="portfolio__meta">
+            <span class="portfolio__tag">Промо</span>
+            <span class="portfolio__name">Музыкальный фестиваль</span>
+          </div>
+        </div>
+
+        <div class="portfolio__item reveal-up" data-cat="merch">
+          <div class="portfolio__img portfolio__img--4">
+            <div class="portfolio__placeholder">
+              <span>Команда бренда</span>
+              <span class="portfolio__placeholder-sub">DTG · 30 шт</span>
+            </div>
+          </div>
+          <div class="portfolio__meta">
+            <span class="portfolio__tag">Мерч</span>
+            <span class="portfolio__name">E-commerce компания</span>
+          </div>
+        </div>
+
+        <div class="portfolio__item reveal-up" data-cat="fashion">
+          <div class="portfolio__img portfolio__img--5">
+            <div class="portfolio__placeholder">
+              <span>Лимитированный дроп</span>
+              <span class="portfolio__placeholder-sub">Термовинил · 50 шт</span>
+            </div>
+          </div>
+          <div class="portfolio__meta">
+            <span class="portfolio__tag">Fashion</span>
+            <span class="portfolio__name">Локальный бренд</span>
+          </div>
+        </div>
+
+        <div class="portfolio__item reveal-up" data-cat="promo">
+          <div class="portfolio__img portfolio__img--6">
+            <div class="portfolio__placeholder">
+              <span>Корпоратив 2025</span>
+              <span class="portfolio__placeholder-sub">Сублимация · 150 шт</span>
+            </div>
+          </div>
+          <div class="portfolio__meta">
+            <span class="portfolio__tag">Корпоратив</span>
+            <span class="portfolio__name">IT-компания</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         FAQ
+    ════════════════════════════════════════════════════════════════════════ -->
+    <section class="faq section" id="faq">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label reveal-up">FAQ</p>
+          <h2 class="section-title reveal-up">Часто спрашивают</h2>
+        </div>
+
+        <div class="faq__list reveal-up" id="faqList">
+
+          <details class="faq__item">
+            <summary class="faq__q">Какой минимальный заказ?</summary>
+            <div class="faq__a">
+              <p>От 1 единицы. При DTF-печати нет ограничений по тиражу. Для шелкографии и сублимации действуют минимальные объёмы — от 30 штук.</p>
+            </div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__q">Сколько времени занимает производство?</summary>
+            <div class="faq__a">
+              <p>Стандартный срок — 7–14 рабочих дней. Срочный заказ (доплата) — от 3 рабочих дней. Точные сроки зависят от типа изделия и объёма.</p>
+            </div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__q">Какие файлы нужно предоставить?</summary>
+            <div class="faq__a">
+              <p>Предпочтительно: векторный файл (AI, EPS, PDF) или растр с разрешением не менее 300 DPI в натуральном размере. Также принимаем PNG с прозрачным фоном. Если макета нет — поможем разработать.</p>
+            </div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__q">Можно ли сделать образец перед тиражом?</summary>
+            <div class="faq__a">
+              <p>Да. Физический образец (sample) изготавливается за 3–5 дней. Его стоимость вычитается из стоимости тиража при заказе от 50 штук.</p>
+            </div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__q">Какой способ нанесения выбрать?</summary>
+            <div class="faq__a">
+              <p>Зависит от задачи. DTF подходит для любых тиражей и многоцветных принтов. Шелкография — оптимальна для больших партий с простым рисунком. Вышивка — для логотипов и премиального ощущения. Наш менеджер поможет выбрать лучший вариант под ваш бюджет.</p>
+            </div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__q">Есть ли доставка по России?</summary>
+            <div class="faq__a">
+              <p>Да. Доставляем СДЭК, Почтой России и курьером по Москве. Фулфилмент и хранение готовой продукции — по запросу.</p>
+            </div>
+          </details>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         CONTACT / CTA
+    ════════════════════════════════════════════════════════════════════════ -->
+    <section class="contact section" id="contact">
+      <div class="container">
+        <div class="contact__grid">
+
+          <div class="contact__left">
+            <p class="section-label reveal-up">Контакт</p>
+            <h2 class="section-title reveal-up">
+              Готовы начать?<br>
+              <em>Напишите нам</em>
+            </h2>
+            <p class="contact__text reveal-up">
+              Ответим в течение 2&nbsp;часов в рабочее время.<br>
+              Бесплатная консультация и предварительный расчёт.
+            </p>
+
+            <div class="contact__channels reveal-up">
+              <a href="https://t.me/easyprod_ru" class="contact__channel" target="_blank" rel="noopener">
+                <span class="contact__channel-icon">TG</span>
+                <span>Telegram</span>
+              </a>
+              <a href="https://wa.me/79001234567" class="contact__channel" target="_blank" rel="noopener">
+                <span class="contact__channel-icon">WA</span>
+                <span>WhatsApp</span>
+              </a>
+              <a href="mailto:hello@easy-production.ru" class="contact__channel">
+                <span class="contact__channel-icon">@</span>
+                <span>hello@easy-production.ru</span>
+              </a>
+              <a href="tel:+79001234567" class="contact__channel">
+                <span class="contact__channel-icon">✆</span>
+                <span>+7 (900) 123-45-67</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="contact__right reveal-up">
+            <form class="contact__form" id="contactForm" novalidate>
+              <div class="form__row">
+                <label class="form__label" for="fName">Имя</label>
+                <input class="form__input" type="text" id="fName" name="name" placeholder="Иван Петров" autocomplete="name" required />
+              </div>
+
+              <div class="form__row">
+                <label class="form__label" for="fContact">Telegram / WhatsApp / Email</label>
+                <input class="form__input" type="text" id="fContact" name="contact" placeholder="@username или +7..." required />
+              </div>
+
+              <div class="form__row">
+                <label class="form__label" for="fMessage">Опишите задачу</label>
+                <textarea class="form__textarea" id="fMessage" name="message" rows="4" placeholder="Что нужно сделать, примерный тираж, сроки..." required></textarea>
+              </div>
+
+              <button class="btn btn--accent btn--full" type="submit" id="formSubmitBtn">
+                Отправить заявку
+              </button>
+              <p class="form__note">Нажимая кнопку, вы соглашаетесь с <a href="#">политикой конфиденциальности</a></p>
+
+              <div class="form__success" id="formSuccess" hidden>
+                <p>Заявка отправлена. Мы свяжемся с вами в ближайшее время.</p>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       FOOTER
+  ════════════════════════════════════════════════════════════════════════════ -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__grid">
+        <div class="footer__brand">
+          <a href="#hero" class="footer__logo">Easy Production</a>
+          <p class="footer__tagline">Custom Merch Studio · Москва</p>
+          <p class="footer__copy">© <span id="footerYear"></span> Easy Production. Все права защищены.<span id="adminSecretDot" aria-hidden="true" title=""></span></p>
+        </div>
+
+        <nav class="footer__nav" aria-label="Навигация по разделам">
+          <p class="footer__nav-title">Разделы</p>
+          <ul role="list">
+            <li><a href="#services">Услуги</a></li>
+            <li><a href="#customizer">Конструктор</a></li>
+            <li><a href="#calculator">Калькулятор</a></li>
+            <li><a href="#portfolio">Портфолио</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </nav>
+
+        <div class="footer__contact">
+          <p class="footer__nav-title">Связаться</p>
+          <ul role="list">
+            <li><a href="https://t.me/easyprod_ru" target="_blank" rel="noopener">Telegram</a></li>
+            <li><a href="https://wa.me/79001234567" target="_blank" rel="noopener">WhatsApp</a></li>
+            <li><a href="mailto:hello@easy-production.ru">Email</a></li>
+            <li><a href="tel:+79001234567">+7 (900) 123-45-67</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       ORDER MODAL
+  ════════════════════════════════════════════════════════════════════════════ -->
+  <div id="orderModal" class="order-modal" aria-modal="true" role="dialog" aria-labelledby="orderModalTitle" hidden>
+    <div class="order-modal__overlay" id="orderModalOverlay"></div>
+    <div class="order-modal__dialog">
+      <button class="order-modal__close" id="orderModalClose" aria-label="Закрыть">✕</button>
+      <h2 class="order-modal__title" id="orderModalTitle">Оформить заявку</h2>
+      <p class="order-modal__sub">Заполните форму — менеджер свяжется в течение 2 часов и уточнит детали.</p>
+
+      <!-- Design snapshot strip -->
+      <div class="order-modal__snapshot" id="orderSnapshotStrip" hidden>
+        <img id="orderSnapshotImg" class="order-modal__snap-img" alt="Превью дизайна" />
+        <div class="order-modal__snap-info">
+          <strong>Дизайн из конструктора прикреплён</strong>
+          <span>Менеджер увидит ваш макет</span>
+        </div>
+        <button type="button" class="order-modal__snap-remove" id="orderSnapshotRemove" aria-label="Убрать дизайн">✕</button>
+      </div>
+
+      <form class="order-modal__form" id="orderForm" novalidate>
+        <div class="order-modal__row order-modal__row--2">
+          <div class="order-modal__field">
+            <label for="oName">Имя <span class="req">*</span></label>
+            <input type="text" id="oName" name="name" placeholder="Иван" required />
+          </div>
+          <div class="order-modal__field">
+            <label for="oSurname">Фамилия</label>
+            <input type="text" id="oSurname" name="surname" placeholder="Петров" />
+          </div>
+        </div>
+        <div class="order-modal__row order-modal__row--2">
+          <div class="order-modal__field">
+            <label for="oPhone">Телефон <span class="req">*</span></label>
+            <input type="tel" id="oPhone" name="phone" placeholder="+7 (999) 000-00-00" required />
+          </div>
+          <div class="order-modal__field">
+            <label for="oEmail">Email</label>
+            <input type="email" id="oEmail" name="email" placeholder="ivan@mail.ru" />
+          </div>
+        </div>
+        <div class="order-modal__row order-modal__row--2">
+          <div class="order-modal__field">
+            <label for="oProduct">Тип изделия <span class="req">*</span></label>
+            <select id="oProduct" name="product" required>
+              <option value="">— выберите —</option>
+              <option>Футболка</option>
+              <option>Худи</option>
+              <option>Свитшот</option>
+              <option>Куртка</option>
+              <option>Кепка</option>
+              <option>Сумка</option>
+              <option>Другое</option>
+            </select>
+          </div>
+          <div class="order-modal__field">
+            <label for="oQty">Количество, шт <span class="req">*</span></label>
+            <input type="number" id="oQty" name="qty" placeholder="50" min="1" required />
+          </div>
+        </div>
+        <div class="order-modal__field">
+          <label for="oComment">Описание / пожелания</label>
+          <textarea id="oComment" name="comment" rows="3" placeholder="Цвет, размерный ряд, срок, особые пожелания..."></textarea>
+        </div>
+
+        <!-- Attach design button (shown only if 3D canvas is present and snapshot not yet taken) -->
+        <button type="button" class="order-modal__attach-btn" id="orderAttachBtn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="5.5" cy="5.5" r="1" fill="currentColor"/>
+            <path d="M2 11l3.5-3.5L8 10l2.5-2.5L14 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Прикрепить дизайн из конструктора
+        </button>
+
+        <button type="submit" class="btn btn--accent btn--full order-modal__submit" id="orderSubmitBtn">
+          Отправить заявку
+        </button>
+        <p class="order-modal__note">Нажимая кнопку, вы соглашаетесь с политикой конфиденциальности</p>
+      </form>
+
+      <div class="order-modal__success" id="orderSuccess" hidden>
+        <div class="order-modal__success-icon">✓</div>
+        <h3>Заявка отправлена!</h3>
+        <p>Мы свяжемся с вами в течение 2 часов в рабочее время.</p>
+        <button type="button" class="btn btn--ghost" id="orderSuccessClose">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SCRIPTS
+  ════════════════════════════════════════════════════════════════════════════ -->
+
+  <!-- Import map: resolves bare 'three' specifier used inside OrbitControls / GLTFLoader ESM imports -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <!-- Three.js r160 (UMD build — sets window.THREE for non-module scripts) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <!-- GSAP + ScrollTrigger -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/ScrollTrigger.min.js"></script>
+
+  <script src="js/db.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/calculator.js"></script>
+  <!-- ES module: imports OrbitControls + GLTFLoader at top level, deferred automatically -->
+  <script type="module" src="js/customizer.js"></script>
+  <script src="js/slider.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SVG LIQUID GLASS FILTER — edge refraction / displacement
+       Position 0×0, aria-hidden, must be IN the DOM for CSS filter:url() ref
+  ════════════════════════════════════════════════════════════════════════════ -->
+  <svg class="svg-defs" aria-hidden="true" focusable="false">
+    <defs>
+      <!-- Subtle displacement used on specular ::before layers on hover -->
+      <filter id="lg-refract" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.72 0.88" numOctaves="3" seed="8" result="noise"/>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+      <!-- Stronger distortion for accent usage -->
+      <filter id="lg-distort" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.60 0.75" numOctaves="4" seed="3" result="noise"/>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="10" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+      <!-- Soft blur + saturation boost (simulates backdrop refraction in browsers that don't support url() in backdrop-filter) -->
+      <filter id="lg-glass" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+        <feGaussianBlur stdDeviation="0.6" result="blur"/>
+        <feColorMatrix type="saturate" values="1.5" in="blur" result="sat"/>
+        <feBlend in="SourceGraphic" in2="sat" mode="luminosity"/>
+      </filter>
+    </defs>
+  </svg>
+
+</body>
+</html>
