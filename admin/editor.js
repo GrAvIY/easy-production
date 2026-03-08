@@ -403,11 +403,60 @@ const MODEL_TYPES = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   GITHUB AUTO-SYNC
-   Auto-detects owner/repo from the GitHub Pages URL.
-   Only requires a Personal Access Token (stored in localStorage).
-   On upload → pushes .glb to repo → GitHub Pages deploys → all devices see it.
+   3D MODEL PUBLISHING — works on any hosting
+   ┌─────────────────────────────────────────────────────────────────────┐
+   │ Regular hosting (PHP)  → upload.php saves file to assets/models/   │
+   │ GitHub Pages           → GitHub API commits file to repo            │
+   │ Localhost              → IndexedDB only (local preview)             │
+   └─────────────────────────────────────────────────────────────────────┘
 ═══════════════════════════════════════════════════════════════════════════ */
+
+function isGitHubPages() { return window.location.hostname.endsWith('.github.io'); }
+function isLocalhost()   { const h = window.location.hostname; return h === 'localhost' || h === '127.0.0.1' || h === ''; }
+function hasPhpUpload()  { return !isGitHubPages() && !isLocalhost(); }
+
+/** Upload GLB via upload.php on regular PHP hosting */
+async function uploadToServer(type, arrayBuffer) {
+  const formData = new FormData();
+  formData.append('type', type);
+  formData.append('model', new Blob([arrayBuffer], { type: 'model/gltf-binary' }), type + '.glb');
+  try {
+    const res = await fetch('upload.php', {
+      method: 'POST',
+      headers: { 'X-Admin-Password': ADMIN_PASSWORD },
+      body: formData,
+    });
+    return await res.json();
+  } catch (e) { return { ok: false, error: e.message }; }
+}
+
+/** Sync ALL IDB models to server (PHP or GitHub) */
+async function syncAllModelsToGitHub() {
+  const keys = await EpDB.models.keys().catch(() => []);
+  if (!keys.length) { toast('Нет загруженных моделей', 'error'); return; }
+  const syncBtn = document.getElementById('ghSyncAllBtn');
+  if (syncBtn) { syncBtn.disabled = true; }
+  let done = 0, failed = 0;
+  for (const type of keys) {
+    try {
+      const buf = await EpDB.models.get(type);
+      if (!buf) continue;
+      let res;
+      if (hasPhpUpload()) {
+        res = await uploadToServer(type, buf);
+      } else {
+        res = await pushToGitHub(type, buf);
+      }
+      res.ok ? done++ : failed++;
+    } catch (_) { failed++; }
+    if (syncBtn) syncBtn.textContent = '🔄 ' + (done + failed) + '/' + keys.length + '…';
+  }
+  if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = '🔄 Синхронизировать все'; }
+  toast(failed === 0 ? '✓ Все модели (' + done + ') опубликованы!' : done + ' успешно, ' + failed + ' ошибок', failed ? 'error' : 'success');
+  renderModelsPanel();
+}
+
+/* ── GitHub API (GitHub Pages only) ─────────────────────────────────────── */
 const GH_CONFIG_KEY = 'ep_gh_config';
 
 /** Auto-detect GitHub owner + repo from the GitHub Pages hostname/path */
@@ -594,41 +643,66 @@ async function renderModelsPanel() {
       </div>
     </div>`;
 
-  const ghCfg        = getGhConfig();
-  const ghConfigured = !!(ghCfg.token);
-  const detected     = detectGhRepo();
+  const ghCfg    = getGhConfig();
+  const ghOk     = !!(ghCfg.token);
+  const detected = detectGhRepo();
+  const phpMode  = hasPhpUpload();
+  const ghMode   = isGitHubPages();
 
-  container.innerHTML = `
-    <div class="card" style="border-color:${ghConfigured ? '#16A34A' : '#DC2626'};background:${ghConfigured ? '#F0FDF4' : '#FFF5F5'};">
-      <div class="card__title card__title--mb8" style="color:${ghConfigured ? '#15803D' : '#DC2626'};">
-        ${ghConfigured ? '&#10003; GitHub подключён — модели видны всем' : '&#9888; Подключите GitHub — без этого модели видны только вам'}
+  // ── Status card ────────────────────────────────────────────────────────────
+  let statusCard = '';
+
+  if (phpMode) {
+    // Regular hosting: upload.php handles everything, no config needed
+    statusCard = `
+    <div class="card" style="border-color:#16A34A;background:#F0FDF4;">
+      <div class="card__title card__title--mb8" style="color:#15803D;">&#10003; Хостинг с PHP — модели сохраняются на сервер автоматически</div>
+      <div class="card__hint" style="color:#166534;margin-bottom:10px;">
+        Загрузите .glb модель — она сохранится прямо на сервер в <code>assets/models/</code> и сразу появится на <strong>всех устройствах</strong> без каких-либо дополнительных действий.
       </div>
-      <div class="card__hint" style="margin-bottom:12px;color:${ghConfigured ? '#166534' : '#7F1D1D'};">
-        ${ghConfigured
-          ? 'Репозиторий: <strong>' + esc(ghCfg.owner) + '/' + esc(ghCfg.repo) + '</strong>. При загрузке модель автоматически публикуется и становится доступна на <strong>всех устройствах</strong> через ~1 минуту.'
-          : 'Модели хранятся только в этом браузере. Посетители сайта и мобильные устройства видят процедурную геометрию. Подключите GitHub за 1 минуту — и модели появятся везде.'}
+      <button class="tb-btn tb-btn--ghost" id="ghSyncAllBtn" onclick="syncAllModelsToGitHub()">&#128260; Синхронизировать все модели на сервер</button>
+    </div>`;
+
+  } else if (ghMode) {
+    // GitHub Pages: need token
+    statusCard = `
+    <div class="card" style="border-color:${ghOk ? '#16A34A' : '#DC2626'};background:${ghOk ? '#F0FDF4' : '#FFF5F5'};">
+      <div class="card__title card__title--mb8" style="color:${ghOk ? '#15803D' : '#DC2626'};">
+        ${ghOk ? '&#10003; GitHub подключён — модели видны на всех устройствах' : '&#9888; Подключите GitHub — без этого модели видны только вам'}
       </div>
-      ${!ghConfigured ? `
-      <div style="background:#fff;border:1.5px solid #FCA5A5;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;line-height:1.8;">
-        <strong>Как создать токен (1 минута):</strong><br>
-        1. Перейдите: <strong>github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens</strong><br>
-        2. Нажмите <strong>Generate new token</strong><br>
-        3. Repository access: <strong>Only select repositories</strong> → выберите <strong>${esc(detected.repo || 'easy-production')}</strong><br>
-        4. Permissions → Contents → <strong>Read and write</strong><br>
-        5. Нажмите <strong>Generate token</strong> и скопируйте его ниже
+      <div class="card__hint" style="margin-bottom:12px;color:${ghOk ? '#166534' : '#7F1D1D'};">
+        ${ghOk
+          ? 'Репозиторий: <strong>' + esc(ghCfg.owner) + '/' + esc(ghCfg.repo) + '</strong>. При загрузке .glb модель автоматически публикуется в репозиторий и появляется на всех устройствах через ~1 минуту.'
+          : 'Сайт на GitHub Pages. Для работы на всех устройствах нужен GitHub токен. Создайте его за 1 минуту:'}
+      </div>
+      ${!ghOk ? `
+      <div style="background:#fff;border:1.5px solid #FCA5A5;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;line-height:1.9;">
+        1. <a href="https://github.com/settings/personal-access-tokens/new" target="_blank"><strong>Открыть создание токена на GitHub →</strong></a><br>
+        2. Repository access → <strong>Only select repositories</strong> → выбрать <strong>${esc(detected.repo || 'easy-production')}</strong><br>
+        3. Permissions → Contents → <strong>Read and write</strong><br>
+        4. Нажать <strong>Generate token</strong> → скопировать → вставить ниже
       </div>` : ''}
       <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
         <div class="field-group" style="flex:1;min-width:200px;margin-bottom:0;">
           <label>GitHub Personal Access Token</label>
           <input type="password" id="ghToken" placeholder="github_pat_..." value="${esc(ghCfg.token || '')}" />
         </div>
-        <button class="tb-btn tb-btn--primary" id="ghSaveBtn" onclick="saveGithubConfig()" style="flex-shrink:0;height:40px;">
-          ${ghConfigured ? 'Обновить' : 'Подключить'}
-        </button>
-        ${ghConfigured ? `<button class="tb-btn tb-btn--ghost" id="ghSyncAllBtn" onclick="syncAllModelsToGitHub()" style="flex-shrink:0;height:40px;">&#128260; Синхронизировать все</button>` : ''}
+        <button class="tb-btn tb-btn--primary" id="ghSaveBtn" onclick="saveGithubConfig()" style="flex-shrink:0;height:40px;">${ghOk ? 'Обновить' : 'Подключить'}</button>
+        ${ghOk ? `<button class="tb-btn tb-btn--ghost" id="ghSyncAllBtn" onclick="syncAllModelsToGitHub()" style="flex-shrink:0;height:40px;">&#128260; Синхронизировать все</button>` : ''}
       </div>
       ${detected.owner ? `<p style="font-size:11px;color:#6B7280;margin-top:8px;">Авто-определено: <code>${esc(detected.owner)}/${esc(detected.repo)}</code></p>` : ''}
-    </div>
+    </div>`;
+
+  } else {
+    // Localhost
+    statusCard = `
+    <div class="card" style="border-color:#D97706;background:#FFFBEB;">
+      <div class="card__title card__title--mb8" style="color:#92400E;">&#9881; Локальная разработка — модели сохраняются только локально</div>
+      <div class="card__hint" style="color:#78350F;">На production-хостинге (PHP или GitHub Pages) модели будут автоматически доступны всем устройствам.</div>
+    </div>`;
+  }
+
+  container.innerHTML = statusCard + `
     <div class="card">
       <div class="card__title card__title--mb8">Стандартные разделы</div>
       <div class="card__hint">Загрузите .glb модель — она заменит процедурную геометрию и появится на всех устройствах.</div>
@@ -651,28 +725,8 @@ async function uploadModel(type) {
     if (!file) return;
     try {
       const buf = await file.arrayBuffer();
-
-      // 1. Save to IDB (local preview)
-      await EpDB.models.set(type, buf);
-      toast('3D модель сохранена локально: ' + file.name, 'success');
+      await publishModel(type, buf);
       renderModelsPanel();
-
-      // 2. Push to GitHub repo so ALL devices see it
-      const cfg = getGhConfig();
-      if (cfg.token && cfg.owner && cfg.repo) {
-        toast('Загружаю на GitHub…', 'success');
-        const result = await pushToGitHub(type, buf);
-        if (result.ok) {
-          toast('✓ Модель опубликована на сайте! Обновится через ~1 мин.', 'success');
-        } else if (result.reason === 'no-config') {
-          // no-op: handled below
-        } else {
-          toast('GitHub ошибка ' + result.status + '. Проверьте токен.', 'error');
-        }
-      } else {
-        toast('⚠ GitHub не настроен — модель видна только здесь. Настройте GitHub ниже.', 'error');
-      }
-
     } catch (e) {
       toast('Ошибка загрузки: ' + e.message, 'error');
     }
