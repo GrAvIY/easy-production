@@ -418,6 +418,7 @@ async function renderModelsPanel() {
   function modelCard(type, label, isCustom) {
     const hasModel  = existingKeys.includes(type);
     const isHidden  = !isCustom && hiddenProducts.includes(type);
+    const filename  = type + '.glb';
     return `
     <div class="card" style="${isHidden ? 'opacity:.55;' : ''}">
       <div class="card__header">
@@ -432,6 +433,7 @@ async function renderModelsPanel() {
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <button class="btn-icon" onclick="uploadModel('${type}')">&#128230; Загрузить .glb</button>
+        ${hasModel ? `<button class="btn-icon" onclick="deployModel('${type}')" title="Скачать файл для публикации на сайте">&#128190; Скачать для сайта</button>` : ''}
         ${hasModel ? `<button class="btn-icon danger" onclick="removeModel('${type}')">&#128465; Удалить модель</button>` : ''}
         ${isCustom
           ? `<button class="btn-icon danger" onclick="removeCustomProduct('${type}')">&#10005; Удалить раздел</button>`
@@ -439,6 +441,7 @@ async function renderModelsPanel() {
             ? `<button class="btn-icon" onclick="restoreBuiltinProduct('${type}')">&#8635; Восстановить раздел</button>`
             : `<button class="btn-icon danger" onclick="hideBuiltinProduct('${type}')">&#10005; Удалить раздел</button>`}
       </div>
+      ${hasModel ? `<p style="font-size:11px;color:#6B7280;margin-top:8px;">&#128161; Нажмите «Скачать для сайта», сохраните файл как <code>assets/models/${filename}</code> и обновите сайт — тогда модель увидят все пользователи на всех устройствах.</p>` : ''}
     </div>`;
   }
 
@@ -465,6 +468,22 @@ async function renderModelsPanel() {
     </div>`;
 
   container.innerHTML = `
+    <div class="card" style="border-color:#FBBF24;background:#FFFBEB;">
+      <div class="card__title card__title--mb8" style="color:#92400E;">&#128161; Как сделать модели видимыми для всех пользователей</div>
+      <div class="card__hint" style="color:#78350F;">
+        Модели загруженные в этой панели хранятся <strong>только в вашем браузере</strong>. Чтобы модели отображались на всех устройствах (телефоны, другие браузеры):
+        <ol style="margin:10px 0 0 16px;line-height:2;">
+          <li>Загрузите .glb модель кнопкой <strong>«Загрузить .glb»</strong></li>
+          <li>Нажмите <strong>«Скачать для сайта»</strong> — файл скачается</li>
+          <li>Сохраните файл в папку <code>assets/models/</code> вашего проекта</li>
+          <li>В терминале выполните:<br>
+            <code>git add assets/models/</code><br>
+            <code>git commit -m "Add 3D model"</code><br>
+            <code>git push origin main</code>
+          </li>
+        </ol>
+      </div>
+    </div>
     <div class="card">
       <div class="card__title card__title--mb8">Стандартные разделы</div>
       <div class="card__hint">Встроенные типы одежды. Загрузите .glb модель, чтобы заменить процедурную геометрию.</div>
@@ -495,6 +514,26 @@ async function uploadModel(type) {
     }
   };
   input.click();
+}
+
+/** Download a model from IDB as a .glb file for deployment into assets/models/ */
+async function deployModel(type) {
+  try {
+    const buf = await EpDB.models.get(type);
+    if (!buf) { toast('Модель не найдена в базе', 'error'); return; }
+    const blob = new Blob([buf], { type: 'model/gltf-binary' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = type + '.glb';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast('Скачивание началось: ' + type + '.glb', 'success');
+  } catch (e) {
+    toast('Ошибка скачивания: ' + e.message, 'error');
+  }
 }
 
 async function removeModel(type) {
