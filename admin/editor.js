@@ -404,25 +404,63 @@ const MODEL_TYPES = {
 
 /* ═══════════════════════════════════════════════════════════════════════════
    GITHUB AUTO-SYNC
-   Stores the GitHub token/owner/repo in localStorage (admin-only device).
-   On every model upload, pushes the .glb directly to the repo via GitHub API.
-   GitHub Pages then deploys automatically — model becomes live for all users.
+   Auto-detects owner/repo from the GitHub Pages URL.
+   Only requires a Personal Access Token (stored in localStorage).
+   On upload → pushes .glb to repo → GitHub Pages deploys → all devices see it.
 ═══════════════════════════════════════════════════════════════════════════ */
 const GH_CONFIG_KEY = 'ep_gh_config';
 
+/** Auto-detect GitHub owner + repo from the GitHub Pages hostname/path */
+function detectGhRepo() {
+  const host = window.location.hostname; // graviy.github.io
+  const path = window.location.pathname; // /easy-production/admin.html
+  if (host.endsWith('.github.io')) {
+    const owner = host.replace('.github.io', '');
+    const repo  = path.split('/').filter(Boolean)[0] || '';
+    return { owner, repo };
+  }
+  return { owner: '', repo: '' };
+}
+
 function getGhConfig() {
-  try { return JSON.parse(localStorage.getItem(GH_CONFIG_KEY) || '{}'); }
-  catch (_) { return {}; }
+  try {
+    const saved = JSON.parse(localStorage.getItem(GH_CONFIG_KEY) || '{}');
+    // Always merge auto-detected values (user may not have filled them)
+    const detected = detectGhRepo();
+    return {
+      owner: saved.owner || detected.owner,
+      repo:  saved.repo  || detected.repo,
+      token: saved.token || '',
+    };
+  } catch (_) { return { ...detectGhRepo(), token: '' }; }
 }
 function saveGhConfig(cfg) { localStorage.setItem(GH_CONFIG_KEY, JSON.stringify(cfg)); }
 
-function saveGithubConfig() {
-  const owner = (document.getElementById('ghOwner')?.value || '').trim();
-  const repo  = (document.getElementById('ghRepo')?.value  || '').trim();
+async function saveGithubConfig() {
   const token = (document.getElementById('ghToken')?.value || '').trim();
-  if (!owner || !repo || !token) { toast('Заполните все поля GitHub', 'error'); return; }
-  saveGhConfig({ owner, repo, token });
-  toast('GitHub настройки сохранены ✓', 'success');
+  if (!token) { toast('Вставьте токен GitHub', 'error'); return; }
+
+  const detected = detectGhRepo();
+  const btn = document.getElementById('ghSaveBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Проверяю токен…'; }
+
+  // Verify token works
+  try {
+    const r = await fetch('https://api.github.com/user', {
+      headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
+    });
+    if (!r.ok) { toast('Токен недействителен (ошибка ' + r.status + ')', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Подключить'; } return; }
+    const user = await r.json();
+    const owner = user.login || detected.owner;
+    saveGhConfig({ owner, repo: detected.repo || owner + '-site', token });
+    toast('GitHub подключён: ' + owner + '/' + (detected.repo || '') + ' ✓', 'success');
+    // Immediately sync all existing models
+    await syncAllModelsToGitHub();
+    renderModelsPanel();
+  } catch (e) {
+    toast('Ошибка соединения: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Подключить'; }
+  }
 }
 
 /** Convert ArrayBuffer → base64 string via FileReader (handles large files) */
@@ -434,7 +472,7 @@ function bufToBase64(buffer) {
   });
 }
 
-/** Push a .glb file to assets/models/{type}.glb via GitHub Contents API */
+/** Push a single .glb to assets/models/{type}.glb via GitHub Contents API */
 async function pushToGitHub(type, arrayBuffer) {
   const cfg = getGhConfig();
   if (!cfg.token || !cfg.owner || !cfg.repo) return { ok: false, reason: 'no-config' };
@@ -447,11 +485,10 @@ async function pushToGitHub(type, arrayBuffer) {
     'Content-Type': 'application/json',
   };
 
-  // Get current SHA (needed to update existing file)
   let sha = null;
   try {
-    const res = await fetch(apiUrl, { headers });
-    if (res.ok) { const d = await res.json(); sha = d.sha; }
+    const r = await fetch(apiUrl, { headers });
+    if (r.ok) { const d = await r.json(); sha = d.sha; }
   } catch (_) {}
 
   const base64 = await bufToBase64(arrayBuffer);
@@ -460,6 +497,36 @@ async function pushToGitHub(type, arrayBuffer) {
 
   const res = await fetch(apiUrl, { method: 'PUT', headers, body: JSON.stringify(body) });
   return { ok: res.ok, status: res.status };
+}
+
+/** Push ALL models currently stored in IDB to GitHub */
+async function syncAllModelsToGitHub() {
+  const cfg = getGhConfig();
+  if (!cfg.token) { toast('Сначала подключите GitHub', 'error'); return; }
+
+  const keys = await EpDB.models.keys().catch(() => []);
+  if (!keys.length) { toast('Нет загруженных моделей', 'error'); return; }
+
+  const syncBtn = document.getElementById('ghSyncAllBtn');
+  if (syncBtn) { syncBtn.disabled = true; syncBtn.textContent = 'Синхронизирую 0/' + keys.length + '…'; }
+
+  let done = 0, failed = 0;
+  for (const type of keys) {
+    try {
+      const buf = await EpDB.models.get(type);
+      if (!buf) continue;
+      const res = await pushToGitHub(type, buf);
+      if (res.ok) { done++; } else { failed++; }
+    } catch (_) { failed++; }
+    if (syncBtn) syncBtn.textContent = 'Синхронизирую ' + (done + failed) + '/' + keys.length + '…';
+  }
+
+  if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = '🔄 Синхронизировать все'; }
+  if (failed === 0) {
+    toast('✓ Все модели (' + done + ') опубликованы! Сайт обновится через ~1 мин.', 'success');
+  } else {
+    toast('Готово: ' + done + ' успешно, ' + failed + ' ошибок', 'error');
+  }
 }
 
 async function renderModelsPanel() {
@@ -478,7 +545,7 @@ async function renderModelsPanel() {
   function modelCard(type, label, isCustom) {
     const hasModel  = existingKeys.includes(type);
     const isHidden  = !isCustom && hiddenProducts.includes(type);
-    const filename  = type + '.glb';
+
     return `
     <div class="card" style="${isHidden ? 'opacity:.55;' : ''}">
       <div class="card__header">
@@ -501,7 +568,7 @@ async function renderModelsPanel() {
             ? `<button class="btn-icon" onclick="restoreBuiltinProduct('${type}')">&#8635; Восстановить раздел</button>`
             : `<button class="btn-icon danger" onclick="hideBuiltinProduct('${type}')">&#10005; Удалить раздел</button>`}
       </div>
-      ${hasModel ? `<p style="font-size:11px;color:#6B7280;margin-top:8px;">&#128161; Нажмите «Скачать для сайта», сохраните файл как <code>assets/models/${filename}</code> и обновите сайт — тогда модель увидят все пользователи на всех устройствах.</p>` : ''}
+      ${hasModel && !ghConfigured ? `<p style="font-size:11px;color:#DC2626;margin-top:8px;">&#9888; Подключите GitHub выше — иначе модель видна только вам.</p>` : ''}
     </div>`;
   }
 
@@ -527,38 +594,44 @@ async function renderModelsPanel() {
       </div>
     </div>`;
 
-  const ghCfg = getGhConfig();
-  const ghConfigured = !!(ghCfg.token && ghCfg.owner && ghCfg.repo);
+  const ghCfg        = getGhConfig();
+  const ghConfigured = !!(ghCfg.token);
+  const detected     = detectGhRepo();
 
   container.innerHTML = `
-    <div class="card" style="border-color:${ghConfigured ? '#16A34A' : '#FBBF24'};background:${ghConfigured ? '#F0FDF4' : '#FFFBEB'};">
-      <div class="card__title card__title--mb8" style="color:${ghConfigured ? '#15803D' : '#92400E'};">
-        ${ghConfigured ? '&#10003; GitHub подключён — модели публикуются автоматически' : '&#9881; Подключите GitHub — чтобы модели видели все'}
+    <div class="card" style="border-color:${ghConfigured ? '#16A34A' : '#DC2626'};background:${ghConfigured ? '#F0FDF4' : '#FFF5F5'};">
+      <div class="card__title card__title--mb8" style="color:${ghConfigured ? '#15803D' : '#DC2626'};">
+        ${ghConfigured ? '&#10003; GitHub подключён — модели видны всем' : '&#9888; Подключите GitHub — без этого модели видны только вам'}
       </div>
-      <div class="card__hint" style="color:${ghConfigured ? '#166534' : '#78350F'};margin-bottom:14px;">
+      <div class="card__hint" style="margin-bottom:12px;color:${ghConfigured ? '#166534' : '#7F1D1D'};">
         ${ghConfigured
-          ? 'После загрузки .glb модель автоматически публикуется в репозиторий и становится доступна на всех устройствах через ~1 минуту.'
-          : 'Без настройки GitHub модели хранятся только в этом браузере. На телефонах и других устройствах будет процедурная геометрия.'}
+          ? 'Репозиторий: <strong>' + esc(ghCfg.owner) + '/' + esc(ghCfg.repo) + '</strong>. При загрузке модель автоматически публикуется и становится доступна на <strong>всех устройствах</strong> через ~1 минуту.'
+          : 'Модели хранятся только в этом браузере. Посетители сайта и мобильные устройства видят процедурную геометрию. Подключите GitHub за 1 минуту — и модели появятся везде.'}
       </div>
-      <div class="fields-grid" style="margin-bottom:10px;">
-        <div class="field-group" style="margin-bottom:0;">
-          <label>GitHub Username</label>
-          <input type="text" id="ghOwner" placeholder="GrAvlY" value="${esc(ghCfg.owner || '')}" />
+      ${!ghConfigured ? `
+      <div style="background:#fff;border:1.5px solid #FCA5A5;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;line-height:1.8;">
+        <strong>Как создать токен (1 минута):</strong><br>
+        1. Перейдите: <strong>github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens</strong><br>
+        2. Нажмите <strong>Generate new token</strong><br>
+        3. Repository access: <strong>Only select repositories</strong> → выберите <strong>${esc(detected.repo || 'easy-production')}</strong><br>
+        4. Permissions → Contents → <strong>Read and write</strong><br>
+        5. Нажмите <strong>Generate token</strong> и скопируйте его ниже
+      </div>` : ''}
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="field-group" style="flex:1;min-width:200px;margin-bottom:0;">
+          <label>GitHub Personal Access Token</label>
+          <input type="password" id="ghToken" placeholder="github_pat_..." value="${esc(ghCfg.token || '')}" />
         </div>
-        <div class="field-group" style="margin-bottom:0;">
-          <label>Репозиторий</label>
-          <input type="text" id="ghRepo" placeholder="easy-production" value="${esc(ghCfg.repo || '')}" />
-        </div>
+        <button class="tb-btn tb-btn--primary" id="ghSaveBtn" onclick="saveGithubConfig()" style="flex-shrink:0;height:40px;">
+          ${ghConfigured ? 'Обновить' : 'Подключить'}
+        </button>
+        ${ghConfigured ? `<button class="tb-btn tb-btn--ghost" id="ghSyncAllBtn" onclick="syncAllModelsToGitHub()" style="flex-shrink:0;height:40px;">&#128260; Синхронизировать все</button>` : ''}
       </div>
-      <div class="field-group" style="margin-bottom:10px;">
-        <label>Personal Access Token <a href="https://github.com/settings/tokens/new?scopes=repo&description=EP+Admin" target="_blank" style="font-size:11px;color:#2B4C7E;">(создать токен →)</a></label>
-        <input type="password" id="ghToken" placeholder="github_pat_..." value="${esc(ghCfg.token || '')}" />
-      </div>
-      <button class="tb-btn tb-btn--primary" onclick="saveGithubConfig()" style="margin-top:4px;">Сохранить настройки GitHub</button>
+      ${detected.owner ? `<p style="font-size:11px;color:#6B7280;margin-top:8px;">Авто-определено: <code>${esc(detected.owner)}/${esc(detected.repo)}</code></p>` : ''}
     </div>
     <div class="card">
       <div class="card__title card__title--mb8">Стандартные разделы</div>
-      <div class="card__hint">Встроенные типы одежды. Загрузите .glb модель, чтобы заменить процедурную геометрию.</div>
+      <div class="card__hint">Загрузите .glb модель — она заменит процедурную геометрию и появится на всех устройствах.</div>
     </div>
     ${builtinHtml}
     <div class="card" style="margin-top:24px;">
