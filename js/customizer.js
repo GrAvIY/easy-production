@@ -120,9 +120,18 @@ if (typeof THREE !== 'undefined') {
   const scene  = new THREE.Scene();
   scene.background = new THREE.Color(0xffffff);
 
+  // Safe size: viewport may not be laid out yet on mobile (clientWidth = 0)
+  function getViewportSize() {
+    const w = viewport.clientWidth  || viewport.offsetWidth  || window.innerWidth;
+    const h = viewport.clientHeight || viewport.offsetHeight || Math.round(window.innerWidth * 1.1);
+    return { w: Math.max(w, 1), h: Math.max(h, 1) };
+  }
+
+  const _initSize = getViewportSize();
+
   const camera = new THREE.PerspectiveCamera(
     35,
-    viewport.clientWidth / viewport.clientHeight,
+    _initSize.w / _initSize.h,
     0.01,
     100
   );
@@ -135,14 +144,14 @@ if (typeof THREE !== 'undefined') {
     preserveDrawingBuffer: true,
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+  renderer.setSize(_initSize.w, _initSize.h);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
 
-  console.log('[Customizer] Renderer OK. Viewport size:', viewport.clientWidth, 'x', viewport.clientHeight);
+  console.log('[Customizer] Renderer OK. Viewport size:', _initSize.w, 'x', _initSize.h);
 
   /* ─── Lighting ──────────────────────────────────────────────────────────── */
   const ambient = new THREE.AmbientLight(0xffffff, 0.7);
@@ -1225,8 +1234,7 @@ if (typeof THREE !== 'undefined') {
 
   /* ─── Resize handler ────────────────────────────────────────────────────── */
   function onResize() {
-    const w = viewport.clientWidth;
-    const h = viewport.clientHeight;
+    const { w, h } = getViewportSize();
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
@@ -1234,6 +1242,17 @@ if (typeof THREE !== 'undefined') {
 
   const resizeObserver = new ResizeObserver(onResize);
   resizeObserver.observe(viewport);
+
+  // Orientation change: wait for browser to finish reflowing before resize
+  window.addEventListener('orientationchange', function () {
+    setTimeout(onResize, 300);
+  });
+
+  // Schedule a resize after the first two frames so layout is fully computed
+  // (fixes 0×0 canvas on mobile when script runs before flex layout settles)
+  requestAnimationFrame(function () {
+    requestAnimationFrame(onResize);
+  });
 
   /* ─── Render loop ────────────────────────────────────────────────────────── */
   function animate() {

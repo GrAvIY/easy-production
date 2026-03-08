@@ -22,7 +22,6 @@
      UTILITIES
   ═══════════════════════════════════════════════════════════════════════════ */
 
-  const $ = (sel, ctx = document) => ctx.querySelector(sel);
   const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
 
   function clamp(val, min, max) {
@@ -196,7 +195,7 @@
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    let W, H, animId;
+    let W, H;
 
     const PARTICLE_COUNT = 80;
 
@@ -214,7 +213,7 @@
       H = canvas.height = canvas.offsetHeight;
     }
 
-    function draw(t) {
+    function draw() {
       ctx.clearRect(0, 0, W, H);
 
       // Soft radial glow — red tint for light bg
@@ -253,7 +252,7 @@
         }
       }
 
-      animId = requestAnimationFrame(draw);
+      requestAnimationFrame(draw);
     }
 
     resize();
@@ -322,7 +321,7 @@
     const list = document.getElementById('methodsList');
     if (!list || !window.EP_CONFIG) return;
 
-    Object.entries(EP_CONFIG.methods).forEach(([key, method]) => {
+    Object.entries(EP_CONFIG.methods).forEach(([, method]) => {
       const div = document.createElement('div');
       div.className = 'method-item reveal-up';
 
@@ -1088,6 +1087,30 @@
       }
     } catch (_) {}
   })();
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     MOBILE CUSTOMIZER CONTROLS TOGGLE
+  ═══════════════════════════════════════════════════════════════════════════ */
+  (function initCustMobToggle() {
+    var toggleBtn = document.getElementById('custMobToggle');
+    var panel     = document.getElementById('customizerControls');
+    if (!toggleBtn || !panel) return;
+
+    toggleBtn.addEventListener('click', function () {
+      var isOpen = panel.classList.toggle('mob-open');
+      toggleBtn.classList.toggle('open', isOpen);
+      toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+
+    // Update viewport hint text for touch devices
+    var isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    if (isTouchDevice) {
+      var hintMain = document.getElementById('viewportHintMain');
+      var hintSub  = document.getElementById('viewportHintSub');
+      if (hintMain) hintMain.textContent = 'Проведи для вращения';
+      if (hintSub)  hintSub.textContent  = 'Два пальца — масштаб';
+    }
+  }());
 
   /* ═══════════════════════════════════════════════════════════════════════════
      SECRET ADMIN ACCESS

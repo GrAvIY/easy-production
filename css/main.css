@@ -888,6 +888,9 @@ input, select, textarea {
   border-top: 1px solid var(--c-border);
 }
 
+/* Mobile controls toggle — hidden on desktop */
+.cust-mob-toggle { display: none; }
+
 .ctrl-label {
   font-size: 0.6875rem;
   font-weight: 600;
@@ -1942,21 +1945,69 @@ input, select, textarea {
     flex-direction: column;
   }
 
+  /* Viewport takes majority of visible screen */
   .customizer__viewport {
     order: 1;
-    min-height: 320px;
+    min-height: clamp(320px, 60vw, 480px);
+    width: 100%;
   }
 
+  /* Controls: collapsed by default; toggle via .mob-open */
   .customizer__controls {
     order: 2;
-    max-height: 55vh;
-    overflow-y: auto;
+    max-height: 0;
+    overflow: hidden;
     border-right: none;
+    border-top: none;
+    padding-top: 0;
+    padding-bottom: 0;
+    transition: max-height .35s ease, padding .35s ease;
+  }
+
+  .customizer__controls.mob-open {
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-top: var(--sp-4);
+    padding-bottom: var(--sp-4);
+    border-top: 1px solid var(--c-border);
+  }
+
+  /* Toggle button — only visible on mobile */
+  .cust-mob-toggle {
+    order: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--c-bg-1, #f3f4f6);
+    border: none;
+    border-top: 1px solid var(--c-border);
     border-bottom: 1px solid var(--c-border);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--c-text);
+    cursor: pointer;
+    letter-spacing: .02em;
+  }
+
+  .cust-mob-toggle .cust-mob-toggle__arrow {
+    display: inline-block;
+    transition: transform .3s ease;
+  }
+
+  .cust-mob-toggle.open .cust-mob-toggle__arrow {
+    transform: rotate(180deg);
+  }
+
+  /* Controls comes after toggle visually, push to order 3 */
+  .customizer__controls {
+    order: 3;
   }
 
   .customizer__info {
-    order: 3;
+    order: 4;
     flex-direction: column;
   }
 
@@ -2026,13 +2077,13 @@ input, select, textarea {
     flex-direction: column;
   }
 
-  /* Customizer: tighter controls panel */
-  .customizer__controls {
-    max-height: 50vh;
+  /* Customizer: tighter on small phones */
+  .customizer__controls.mob-open {
+    max-height: 60vh;
   }
 
   .customizer__viewport {
-    min-height: 280px;
+    min-height: clamp(260px, 55vw, 380px);
   }
 
   /* Customizer ctrl groups more compact */
